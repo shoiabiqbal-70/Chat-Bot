@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Reviewable implementation blueprint for Portfolio 01 — Production RAG Service.">
+<title>Portfolio 01 | Production RAG Service — Implementation Blueprint</title>
+<style>
+:root{
+  --navy:#10213f;--navy2:#172f55;--blue:#3568d4;--blue-soft:#edf3ff;
+  --ink:#172033;--muted:#667085;--line:#e4e9f1;--bg:#f4f6fa;--white:#fff;
+  --green:#12805c;--green-soft:#e9f8f1;--amber:#a86108;--amber-soft:#fff5df;
+  --red:#b42318;--red-soft:#fff0ee;--purple:#6941c6;--purple-soft:#f3efff;
+  --shadow:0 10px 30px rgba(16,33,63,.07);--radius:16px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.62 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+a{color:var(--blue);text-decoration:none}
+a:hover{text-decoration:underline}
+button{font:inherit}
+.wrap{max-width:1180px;margin:auto;padding:28px 22px 70px}
+.hero{background:linear-gradient(125deg,#0e1e39 0%,#173c72 58%,#315fd0 100%);color:#fff;border-radius:22px;padding:38px 40px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.hero:after{content:"";position:absolute;width:340px;height:340px;border:1px solid rgba(255,255,255,.12);border-radius:50%;right:-95px;top:-155px;box-shadow:0 0 0 35px rgba(255,255,255,.035),0 0 0 75px rgba(255,255,255,.025)}
+.eyebrow{font-size:11px;letter-spacing:.17em;text-transform:uppercase;font-weight:800;color:#b8d0ff}
+h1{font-size:clamp(30px,5vw,48px);line-height:1.1;letter-spacing:-.04em;margin:10px 0 12px}
+.hero p{max-width:780px;color:#dce7fb;margin:0;font-size:16px}
+.hero-meta{display:flex;gap:9px;flex-wrap:wrap;margin-top:24px}
+.pill{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.1);padding:6px 11px;border-radius:999px;font-size:12px;font-weight:700;color:#f4f7ff}
+.status{display:inline-flex;align-items:center;gap:7px;font-weight:800;font-size:12px;border-radius:999px;padding:6px 10px}
+.status.review{background:#fff1cc;color:#805000}
+.status.mandatory{background:var(--red-soft);color:var(--red)}
+.status.proposed{background:var(--blue-soft);color:#244da9}
+.status.bonus{background:var(--purple-soft);color:var(--purple)}
+.topbar{display:flex;justify-content:space-between;gap:14px;align-items:center;margin:18px 0 22px;flex-wrap:wrap}
+.topbar .note{color:var(--muted);font-size:13px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 13px;color:var(--ink);font-weight:700;cursor:pointer}
+.btn.primary{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn:hover{filter:brightness(.97)}
+.layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:24px;align-items:start}
+.sidebar{position:sticky;top:16px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:17px;box-shadow:var(--shadow)}
+.sidebar h3{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:2px 8px 10px}
+.sidebar a{display:block;padding:8px 9px;border-radius:8px;color:#344054;font-size:13px;font-weight:650}
+.sidebar a:hover{background:var(--blue-soft);text-decoration:none;color:#244da9}
+.progressbox{padding:12px;margin-top:13px;background:#f7f9fc;border-radius:10px}
+.progressline{height:7px;background:#e5eaf2;border-radius:20px;overflow:hidden;margin:8px 0 5px}
+.progressline span{display:block;height:100%;width:0;background:var(--green);transition:width .2s}
+.progressbox small{color:var(--muted)}
+main{min-width:0}
+.section{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:25px;margin-bottom:18px;box-shadow:var(--shadow);scroll-margin-top:20px}
+.section h2{font-size:22px;letter-spacing:-.025em;margin:0 0 5px;line-height:1.25}
+.section .intro{color:var(--muted);margin:0 0 18px}
+.kicker{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--blue);font-weight:850;margin-bottom:7px}
+h3{font-size:16px;margin:20px 0 8px}
+h4{font-size:14px;margin:0 0 6px}
+p{margin:7px 0 12px}
+ul,ol{padding-left:21px;margin:8px 0 12px}
+li{margin:5px 0}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.card{border:1px solid var(--line);border-radius:12px;padding:15px;background:#fff}
+.card.soft{background:#f8faff}
+.card.green{background:var(--green-soft);border-color:#c7ead9}
+.card.amber{background:var(--amber-soft);border-color:#f2dfad}
+.card.red{background:var(--red-soft);border-color:#f3d0cb}
+.card.purple{background:var(--purple-soft);border-color:#e1d7ff}
+.card p:last-child{margin-bottom:0}
+.small{font-size:12px;color:var(--muted)}
+.muted{color:var(--muted)}
+.callout{border-left:4px solid var(--blue);background:var(--blue-soft);padding:13px 15px;border-radius:0 10px 10px 0;margin:13px 0}
+.callout.warn{border-color:#d99018;background:var(--amber-soft)}
+.callout.good{border-color:var(--green);background:var(--green-soft)}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;margin:12px 0}
+table{border-collapse:collapse;width:100%;min-width:650px;font-size:13px}
+th{background:#f3f6fb;text-align:left;color:#344054;font-size:11px;text-transform:uppercase;letter-spacing:.07em}
+th,td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+code{background:#f0f3f8;padding:2px 5px;border-radius:5px;font-size:.92em;color:#243b63}
+pre{background:#101c31;color:#e6edfa;padding:17px;border-radius:12px;overflow:auto;font-size:12px;line-height:1.65}
+.checklist{list-style:none;padding:0;margin:10px 0}
+.checklist li{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px solid #f0f2f6;margin:0}
+.checklist li:last-child{border-bottom:0}
+.checklist input{margin-top:5px;accent-color:var(--green);width:16px;height:16px;flex:0 0 auto}
+.checklist label{cursor:pointer}
+.checklist input:checked+label{text-decoration:line-through;color:#8a94a6}
+details{border:1px solid var(--line);border-radius:11px;margin:9px 0;background:#fff}
+summary{cursor:pointer;list-style:none;padding:12px 14px;font-weight:750;display:flex;justify-content:space-between;gap:10px}
+summary::-webkit-details-marker{display:none}
+summary:after{content:"＋";color:var(--blue);font-size:18px;line-height:1}
+details[open] summary:after{content:"−"}
+.detailsbody{padding:0 14px 14px;color:#475467}
+.phase{display:grid;grid-template-columns:42px minmax(0,1fr);gap:12px;margin:13px 0}
+.phase-num{width:36px;height:36px;border-radius:11px;background:var(--navy);color:#fff;display:grid;place-items:center;font-weight:850}
+.phase-body{border:1px solid var(--line);border-radius:12px;padding:14px}
+.phase-body h4{font-size:15px}
+.tag{display:inline-block;padding:3px 7px;border-radius:6px;background:#edf1f7;color:#475467;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin-left:5px}
+.footer{color:var(--muted);font-size:12px;text-align:center;padding:20px}
+.decision{display:flex;gap:10px;align-items:flex-start}
+.decision b{display:block}
+.decision .dot{width:9px;height:9px;border-radius:50%;background:#d99018;margin-top:7px;flex:none}
+.tocmobile{display:none}
+@media(max-width:850px){.layout{grid-template-columns:1fr}.sidebar{position:relative;top:auto}.sidebar nav{columns:2}.grid3{grid-template-columns:1fr}.grid2{grid-template-columns:1fr}}
+@media(max-width:560px){.wrap{padding:14px 12px 40px}.hero{padding:27px 22px}.section{padding:19px}.sidebar nav{columns:1}.topbar{align-items:flex-start}}
+@media print{body{background:#fff}.wrap{max-width:none;padding:0}.hero{border-radius:0;box-shadow:none}.sidebar,.actions,.topbar .note{display:none!important}.layout{display:block}.section{box-shadow:none;break-inside:avoid}.section details{break-inside:avoid}a{color:inherit}.footer{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <div class="eyebrow">Agentic AI · Portfolio Project 01</div>
+    <h1>Production RAG Service</h1>
+    <p>Implementation blueprint, architecture proposal and acceptance checklist — prepared for review before any application code is changed.</p>
+    <div class="hero-meta">
+      <span class="pill">FastAPI</span><span class="pill">Neon PostgreSQL</span><span class="pill">Pinecone</span><span class="pill">BGE Embeddings</span><span class="pill">Gemini Flash</span><span class="pill">PDF + DOCX</span><span class="pill">Evaluation + Guardrails</span>
+    </div>
+  </header>
+
+  <div class="topbar">
+    <div>
+      <span class="status review">REVIEW GATE · NO IMPLEMENTATION YET</span>
+      <div class="note">Prepared from the supplied 8-page project brief · 24 November 2026</div>
+    </div>
+    <div class="actions">
+      <button class="btn" onclick="window.print()">Print / Save PDF</button>
+      <button class="btn primary" onclick="document.getElementById('approval').scrollIntoView({behavior:'smooth'})">Review decisions</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <h3>Plan navigation</h3>
+      <nav>
+        <a href="#status">01 · Current status</a>
+        <a href="#scope">02 · Requirements</a>
+        <a href="#architecture">03 · Architecture</a>
+        <a href="#decisions">04 · Design choices</a>
+        <a href="#structure">05 · Folder structure</a>
+        <a href="#api">06 · API contract</a>
+        <a href="#frontend">07 · Frontend</a>
+        <a href="#evaluation">08 · Evaluation</a>
+        <a href="#quality">09 · Tests & guardrails</a>
+        <a href="#phases">10 · Build sequence</a>
+        <a href="#git">11 · Git workflow</a>
+        <a href="#submission">12 · Submission & demo</a>
+        <a href="#risks">13 · Risks</a>
+        <a href="#references">14 · Official docs</a>
+        <a href="#approval">15 · Your approval</a>
+      </nav>
+      <div class="progressbox">
+        <b style="font-size:13px">Review checklist</b>
+        <div class="progressline"><span id="progress"></span></div>
+        <small id="progressText">0 of 15 review items checked</small>
+      </div>
+    </aside>
+
+    <main>
+      <section class="section" id="status">
+        <div class="kicker">Starting point</div>
+        <h2>01. Current project status</h2>
+        <p class="intro">This plan incorporates your preference for Neon PostgreSQL and Pinecone. The proposed free-first model choices are BGE-small-en-v1.5 for local embeddings and Gemini 2.5 Flash for answer generation. I have not inspected your local VS Code workspace or GitHub repository, so the existing files and dependencies remain unverified.</p>
+        <div class="grid2">
+          <div class="card green"><h4>Reported as completed</h4><ul><li>Git repository created</li><li>Repository connected in VS Code</li><li><code>.env</code> created</li><li><code>.env.example</code> created</li></ul></div>
+          <div class="card amber"><h4>Not yet verified</h4><ul><li>Repository URL and current branch</li><li>Existing folder/file structure</li><li><code>.gitignore</code> excludes <code>.env</code></li><li>Environment variable names and installed packages</li><li>Whether the first commit has been made</li><li>Whether your Neon and Pinecone accounts/projects already exist</li></ul></div>
+        </div>
+        <div class="callout warn"><b>Important:</b> Do not paste API keys or secret values into chat or commit them to Git. If configuration needs checking, share variable names with values redacted.</div>
+        <p><b>Working rule:</b> We first approve this blueprint. After approval, we inspect the repository state and implement one small, testable feature branch at a time.</p>
+      </section>
+
+      <section class="section" id="scope">
+        <div class="kicker">Assignment coverage</div>
+        <h2>02. Requirements we must satisfy</h2>
+        <p class="intro">The mandatory items below define the minimum acceptable submission. Bonus work is secondary and must not put the core requirements at risk.</p>
+        <div class="grid3">
+          <div class="card soft"><span class="status mandatory">Mandatory</span><h4>Document pipeline</h4><p>Upload PDF and DOCX, extract text, chunk, embed, store metadata, detect duplicates and delete vectors with the document.</p></div>
+          <div class="card soft"><span class="status mandatory">Mandatory</span><h4>Trustworthy answers</h4><p>Retrieve relevant chunks, answer from context, cite only retrieved chunks and abstain when the corpus cannot answer.</p></div>
+          <div class="card soft"><span class="status mandatory">Mandatory</span><h4>Visible retrieval evidence</h4><p>Frontend shows each answer's citations, retrieved chunk count, chunk text and similarity score.</p></div>
+          <div class="card soft"><span class="status mandatory">Mandatory</span><h4>Measured evaluation</h4><p>At least 25 golden questions, including 5 unanswerable questions; retrieval metrics and two configuration comparisons.</p></div>
+          <div class="card soft"><span class="status mandatory">Mandatory</span><h4>Engineering quality</h4><p>Layered code, configuration from environment, async external I/O, timeouts, retries, logging and typed schemas.</p></div>
+          <div class="card soft"><span class="status mandatory">Mandatory</span><h4>Evidence & submission</h4><p>Notebooks, executed pytest tests, API docs, README, DESIGN, EVAL, screenshots, AI-use record and demo video.</p></div>
+        </div>
+        <h3>Bonus features — priority only after mandatory acceptance</h3>
+        <div class="tablewrap"><table>
+          <thead><tr><th>Bonus</th><th>Plan</th><th>Priority</th></tr></thead>
+          <tbody>
+            <tr><td>Document guardrails and edge cases</td><td>Include safe treatment of instructions embedded in uploaded documents, corrupt files, scanned PDFs, large files and concurrent requests where feasible.</td><td>High-value</td></tr>
+            <tr><td>Additional file types</td><td>Add TXT and Markdown only after PDF and DOCX work reliably.</td><td>Medium</td></tr>
+            <tr><td>Multilingual support</td><td>Test questions in another language and return answers in the question language, if the selected models support it.</td><td>Medium</td></tr>
+            <tr><td>Monitoring / observability</td><td>At minimum log request ID, stage latency, token use when available, errors and estimated cost. A full dashboard is optional.</td><td>Medium</td></tr>
+            <tr><td>Signup / login / JWT</td><td>Defer unless the core project is complete; adds user isolation and security scope.</td><td>Low for first pass</td></tr>
+            <tr><td>React / Next.js frontend</td><td>Use the required HTML/CSS frontend first. A modern framework is bonus, not a prerequisite.</td><td>Low for first pass</td></tr>
+            <tr><td>Cloud deployment</td><td>Required by the brief; select a platform only after persistence and environment configuration are verified.</td><td>Mandatory deliverable</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section class="section" id="architecture">
+        <div class="kicker">System design</div>
+        <h2>03. Proposed architecture</h2>
+        <p class="intro">A modular monolith is the right first architecture: one FastAPI application, clearly separated services, a persistent vector store and a small metadata database. This is easier to build, test and explain than unnecessary microservices.</p>
+        <div class="card soft">
+          <pre>                    BROWSER — HTML / CSS / JavaScript
+                   Upload · Document list · Ask · Evidence
+                                  |
+                                  v
+                         FastAPI application
+             +--------------------+--------------------+
+             |                    |                    |
+        Document API          Ask API              Health API
+             |                    |
+             v                    v
+       Ingestion service     Retrieval service
+       - validate file       - embed question locally
+       - extract PDF/DOCX    - Pinecone similarity search
+       - split into chunks   - metadata filters + scores
+       - hash / deduplicate  - optional reranking
+       - create BGE vectors          |
+             |                        v
+             v                 Generation service
+       +------------------+     - grounded prompt
+       | Neon PostgreSQL  |     - Gemini 2.5 Flash API
+       | document records |     - citation validation
+       | chunk text       |     - abstention decision
+       | page + metadata  |             |
+       +------------------+             |
+             ^                           |
+             | chunk IDs                 |
+             |                           v
+       +------------------+     Answer + citations + chunks
+       | Pinecone         |     + similarity scores + timings
+       | vector embeddings|
+       | filter metadata  |
+       +------------------+
+
+       Cross-cutting: config · schemas · docstrings · guardrails
+                      errors · tests · logging · evaluation</pre>
+          <p class="small">Neon stores document records and canonical chunk text/metadata. Pinecone stores 384-dimensional BGE vectors and lightweight metadata IDs for filtering. Retrieved IDs are resolved to full chunk text in Neon.</p>
+        </div>
+        <div class="grid2" style="margin:14px 0">
+          <div class="card"><h4>Neon owns the canonical records</h4><p>Suggested tables: <code>documents</code> (id, filename, SHA-256, MIME type, status, timestamps) and <code>chunks</code> (id, document_id, text, page/section, chunk_index). Use a foreign key with cascade delete for chunk rows.</p></div>
+          <div class="card"><h4>Pinecone owns vector retrieval</h4><p>Use one dense index with dimension <code>384</code> and cosine metric. Vector IDs map to Neon chunk IDs; metadata includes <code>document_id</code>, <code>chunk_id</code>, filename, page and chunk index for filtering/citations.</p></div>
+        </div>
+        <div class="callout warn"><b>Cross-store deletion safety:</b> Neon and Pinecone cannot share one ACID transaction. Mark the document as <code>deleting</code>, delete Pinecone vectors by <code>document_id</code>, then delete Neon records. If Pinecone fails, retain the tombstone/status and retry; never report deletion success while vectors may remain searchable.</div>
+        <h3>Likely dependency groups (versions will be pinned after compatibility testing)</h3>
+        <pre>fastapi · uvicorn · pydantic-settings
+sqlalchemy[asyncio] · asyncpg · alembic
+pinecone · sentence-transformers · torch
+google-genai
+pymupdf · python-docx
+pytest · httpx · jupyter</pre>
+        <p class="small">We will not blindly paste unpinned versions. During setup we will verify Python compatibility, install a tested set, then lock exact versions in <code>requirements.txt</code>.</p>
+        <h3>End-to-end data flows</h3>
+        <details open><summary>Flow A — Upload and ingest a document</summary><div class="detailsbody"><ol><li>Browser sends a multipart upload to the document endpoint.</li><li>Validate extension, MIME type, file size, non-empty content and supported format.</li><li>Calculate SHA-256. If the same content already exists, return <code>409 Conflict</code>.</li><li>Extract text while preserving PDF page numbers or DOCX section/paragraph context as available.</li><li>Reject files with no extractable text. Scanned-PDF OCR is a separately approved enhancement, not silently assumed.</li><li>Split text into chunks and attach document ID, filename, page/section and chunk index.</li><li>Create embeddings and persist vectors; write document status and metadata.</li><li>Return success only when the document is searchable and show it in the frontend list.</li></ol></div></details>
+        <details><summary>Flow B — Ask a question</summary><div class="detailsbody"><ol><li>Validate the question and apply input guardrails.</li><li>Embed the question and search the vector collection using the selected similarity metric.</li><li>Apply the configured top-k and calibrated threshold; retain exact chunk IDs and scores.</li><li>If evidence is insufficient, return a clear “not found in the provided documents” response.</li><li>Otherwise send only the retrieved evidence and question to the LLM with strict grounding instructions.</li><li>Validate every returned citation against the set of retrieved chunk IDs.</li><li>Return the answer, citations, retrieved chunks, count and scores to the UI.</li></ol></div></details>
+        <details><summary>Flow C — Delete a document</summary><div class="detailsbody"><ol><li>Confirm that the document ID exists.</li><li>Delete all vectors filtered by that document ID.</li><li>Delete or mark the document metadata record according to the approved deletion policy.</li><li>Verify that a follow-up query cannot retrieve the deleted document's chunks.</li><li>Return <code>204 No Content</code> only after deletion is complete.</li></ol></div></details>
+      </section>
+
+      <section class="section" id="decisions">
+        <div class="kicker">Proposed decisions — approval required</div>
+        <h2>04. Technology and design choices</h2>
+        <p class="intro">These are pragmatic starting choices, not claims that they have already been installed or benchmarked. Final model names, dimensions, costs and versions must be recorded from the actual provider and package environment.</p>
+        <div class="tablewrap"><table>
+          <thead><tr><th>Area</th><th>Proposed choice</th><th>Why this is a sensible starting point</th><th>Trade-off / validation</th></tr></thead>
+          <tbody>
+            <tr><td>API</td><td>Python + FastAPI + Pydantic</td><td>Async support, validation, dependency injection and automatic OpenAPI docs.</td><td>Keep route handlers thin; test API behavior through TestClient.</td></tr>
+            <tr><td>Frontend</td><td>HTML, CSS and vanilla JavaScript served by FastAPI</td><td>Meets the mandatory requirement and reduces build complexity.</td><td>React/Next.js can wait; frontend must still expose retrieved evidence clearly.</td></tr>
+            <tr><td>PDF extraction</td><td>PyMuPDF</td><td>Page-aware extraction and useful metadata for ordinary text PDFs.</td><td>Scanned pages need OCR; tables and reading order require inspection.</td></tr>
+            <tr><td>DOCX extraction</td><td>python-docx</td><td>Direct access to paragraphs and tables in Word documents.</td><td>Preserve table content and paragraph order; test headings and empty files.</td></tr>
+            <tr><td>Chunking</td><td>Token-aware or recursive splitting with page/section boundaries and overlap</td><td>Preserves useful context while keeping embedding inputs bounded.</td><td>Do not declare a winner by intuition. Compare two settings on the same golden set.</td></tr>
+            <tr><td>Embeddings</td><td><b>BAAI/bge-small-en-v1.5</b> via sentence-transformers, run locally</td><td>English retrieval model, 384 dimensions, 512-token sequence length, MIT license; no embedding API bill. Model card reports an MTEB retrieval score of 51.68 for this checkpoint. <a href="https://huggingface.co/BAAI/bge-small-en-v1.5" target="_blank" rel="noopener">Model card</a>.</td><td>English-focused; CPU inference is free but consumes local RAM/CPU and may be slower. Set Pinecone index dimension to exactly 384. Benchmark on the selected corpus.</td></tr>
+            <tr><td>Vector store</td><td><b>Pinecone Starter</b> serverless index</td><td>Managed vector search with metadata filters and deletion by <code>document_id</code>. Current Starter pricing lists 2 GB storage, 2M write units, 1M read units and 1 GB egress monthly. <a href="https://www.pinecone.io/pricing/" target="_blank" rel="noopener">Official pricing</a>.</td><td>Starter is limited to AWS <code>us-east-1</code> and has monthly quotas. Configure cosine similarity and 384 dimensions; monitor usage and handle quota/rate-limit errors.</td></tr>
+            <tr><td>Document metadata</td><td><b>Neon PostgreSQL</b> via SQLAlchemy async + asyncpg</td><td>Stores document records, SHA-256 hashes, ingestion status, chunk text and canonical source metadata. Current free plan lists 100 CU-hours and 1 GB storage per project monthly. <a href="https://neon.com/docs/introduction/pro-plan" target="_blank" rel="noopener">Neon plans</a>.</td><td>Free compute scales to zero after inactivity; plan for connection pooling and transient wake-up latency. Keep the DB URL in environment variables.</td></tr>
+            <tr><td>LLM</td><td><b>Gemini 2.5 Flash</b> through Google GenAI SDK, behind a provider adapter</td><td>Official pricing lists free-tier input and output tokens, suitable for a small educational demo. <a href="https://ai.google.dev/gemini-api/docs/pricing" target="_blank" rel="noopener">Official pricing</a>.</td><td>Free quotas/rate limits can change. Google states free-tier content may be used to improve products; do not send confidential/private documents. Add timeouts, bounded retries and clear 429 handling.</td></tr>
+            <tr><td>Evaluation</td><td>Python evaluation runner + retrieval metrics + RAGAS or a justified equivalent</td><td>Produces reproducible numeric comparisons and answer-quality evidence.</td><td>LLM-judge scores need calibration against human-reviewed examples.</td></tr>
+            <tr><td>Tests</td><td>pytest + FastAPI TestClient + mocked external APIs</td><td>Fast, repeatable unit and API tests, including expected failures.</td><td>Also run a small real-provider integration test separately.</td></tr>
+          </tbody>
+        </table></div>
+        <h3>Suggested environment variable names</h3>
+        <pre>NEON_DATABASE_URL=postgresql+asyncpg://...
+PINECONE_API_KEY=replace_with_your_key
+PINECONE_INDEX_NAME=production-rag
+PINECONE_CLOUD=aws
+PINECONE_REGION=us-east-1
+EMBEDDING_MODEL=BAAI/bge-small-en-v1.5
+EMBEDDING_DIMENSION=384
+GEMINI_API_KEY=replace_with_your_key
+GEMINI_MODEL=gemini-2.5-flash</pre>
+        <p class="small">These are proposed names, not instructions to overwrite your existing <code>.env</code>. We will reconcile them during the repository audit. Use Neon’s pooled connection string where appropriate for a serverless deployment.</p>
+        <h3>Initial experiment — not a preselected winner</h3>
+        <div class="grid2">
+          <div class="card"><h4>Configuration A · smaller chunks</h4><p>Candidate: 280–340 BGE-tokenizer tokens, 40–50 token overlap.</p><p class="small">Hypothesis: more precise retrieval; may split context needed for multi-part answers.</p></div>
+          <div class="card"><h4>Configuration B · larger chunks</h4><p>Candidate: 420–480 BGE-tokenizer tokens, 60–70 token overlap.</p><p class="small">Hypothesis: more complete context; may introduce irrelevant text and dilute similarity.</p></div>
+        </div>
+        <p>The same corpus, BGE embedding model, question set and retrieval settings must be used for both chunking configurations. Record actual metrics and choose the winner from results, not fabricated or estimated scores. If multilingual questions are an approved bonus, run a separate BGE-M3 experiment with a separate 1,024-dimensional Pinecone index; do not mix 384- and 1,024-dimensional vectors in one index.</p>
+      </section>
+
+      <section class="section" id="structure">
+        <div class="kicker">Repository blueprint</div>
+        <h2>05. Proposed project folder structure</h2>
+        <p class="intro">This adapts the instructor's suggested layered structure. Existing files will be preserved where practical after we inspect the repository; we will not overwrite your work blindly.</p>
+        <pre>production-rag-service/
+│
+├── app/
+│   ├── __init__.py
+│   ├── main.py                  # app creation and router registration
+│   ├── config.py                # settings and environment loading
+│   ├── schemas.py               # Pydantic request/response models
+│   ├── dependencies.py          # shared service dependencies
+│   ├── api/
+│   │   ├── documents.py         # upload, list, delete
+│   │   ├── questions.py         # ask endpoint
+│   │   └── health.py            # health/readiness checks
+│   ├── ingestion/
+│   │   ├── validators.py        # file checks and SHA-256
+│   │   ├── extractors.py        # PDF and DOCX extraction
+│   │   ├── chunking.py          # splitting and metadata
+│   │   └── pipeline.py          # orchestration and persistence
+│   ├── services/
+│   │   ├── embeddings.py        # embedding provider adapter
+│   │   ├── vector_store.py      # Pinecone index operations
+│   │   ├── document_store.py    # Neon PostgreSQL / SQLAlchemy
+│   │   ├── retrieval.py         # search, filtering and scores
+│   │   └── generation.py        # prompt, LLM and citations
+│   └── security/
+│       └── guardrails.py        # input, file and output checks
+│
+├── frontend/
+│   ├── index.html
+│   ├── styles.css
+│   └── app.js
+├── data/
+│   ├── corpus/                  # selected sample documents; no secrets
+│   └── .gitkeep
+├── notebooks/
+│   ├── 01_extraction.ipynb
+│   ├── 02_chunking.ipynb
+│   ├── 03_embeddings_retrieval.ipynb
+│   └── 04_answering.ipynb
+├── evals/
+│   ├── golden_questions.jsonl
+│   ├── run_evaluation.py
+│   └── results/
+├── tests/
+│   ├── unit/
+│   ├── api/
+│   └── conftest.py
+├── docs/
+│   ├── AI_USAGE.md
+│   └── screenshots/
+├── .env                       # local only; ignored by Git
+├── .env.example               # variable names and safe placeholders
+├── .gitignore
+├── requirements.txt
+├── README.md
+├── DESIGN.md
+└── EVAL.md</pre>
+        <div class="callout"><b>Structure rule:</b> <code>main.py</code> registers routes and starts the application; it must not contain extraction, retrieval, prompt or database business logic. Public modules, classes and functions must have meaningful docstrings (Google-style format recommended), including parameters, return values, raised exceptions and side effects where relevant.</div>
+      </section>
+
+      <section class="section" id="api">
+        <div class="kicker">Backend contract</div>
+        <h2>06. Proposed API endpoints</h2>
+        <p class="intro">The brief allows us to choose routes and payloads. This small contract covers the required user journey and supports a clear Swagger demo.</p>
+        <div class="tablewrap"><table>
+          <thead><tr><th>Method + route</th><th>Purpose</th><th>Success response</th><th>Important failures</th></tr></thead>
+          <tbody>
+            <tr><td><code>GET /api/health</code></td><td>Basic service health</td><td><code>200</code> status payload</td><td><code>503</code> if a required dependency is unavailable</td></tr>
+            <tr><td><code>POST /api/documents</code></td><td>Upload and ingest one PDF/DOCX</td><td><code>201</code> document ID, filename, status and chunk count</td><td><code>400</code>, <code>409</code>, <code>415</code>, <code>503</code></td></tr>
+            <tr><td><code>GET /api/documents</code></td><td>List uploaded documents</td><td><code>200</code> document records</td><td><code>503</code> for storage failure</td></tr>
+            <tr><td><code>GET /api/documents/{id}</code></td><td>Read one document's status/metadata</td><td><code>200</code> document record</td><td><code>404</code></td></tr>
+            <tr><td><code>DELETE /api/documents/{id}</code></td><td>Remove document and all its vectors</td><td><code>204</code></td><td><code>404</code>, <code>503</code></td></tr>
+            <tr><td><code>POST /api/ask</code></td><td>Retrieve evidence and generate an answer</td><td><code>200</code> answer, citations, chunks, scores and count</td><td><code>422</code>, <code>429</code>, <code>503</code></td></tr>
+          </tbody>
+        </table></div>
+        <h3>Answer response shape (illustrative)</h3>
+        <pre>{
+  "answer": "The answer grounded in the uploaded documents...",
+  "abstained": false,
+  "citations": [
+    {
+      "document_id": "doc_...",
+      "file_name": "course-notes.pdf",
+      "page": 4,
+      "chunk_id": "chunk_..."
+    }
+  ],
+  "retrieval": {
+    "chunk_count": 3,
+    "chunks": [
+      {
+        "chunk_id": "chunk_...",
+        "text": "Retrieved source passage...",
+        "similarity_score": 0.82,
+        "file_name": "course-notes.pdf",
+        "page": 4
+      }
+    ]
+  }
+}</pre>
+        <p class="small">Illustrative contract only. Exact field names and score semantics will be finalized before endpoint implementation. If the vector database returns distance rather than similarity, convert and label it correctly; never present a raw distance as a similarity score.</p>
+      </section>
+
+      <section class="section" id="frontend">
+        <div class="kicker">User experience</div>
+        <h2>07. Frontend screen plan</h2>
+        <p class="intro">A clean single-page workspace is sufficient. It must make the full RAG process visible, especially the evidence behind each answer.</p>
+        <div class="grid2">
+          <div class="card soft"><h4>Panel A — Document library</h4><ul><li>PDF/DOCX drag-and-drop or browse upload</li><li>File name, type, upload date and ingestion status</li><li>Chunk count and delete action</li><li>Duplicate and unsupported-file feedback</li></ul></div>
+          <div class="card soft"><h4>Panel B — Ask the corpus</h4><ul><li>Question input and submit state</li><li>Answer with clear abstention state</li><li>Source citations linked to document/page</li><li>Helpful empty/loading/error states</li></ul></div>
+          <div class="card soft"><h4>Panel C — Retrieval inspector</h4><ul><li>Number of chunks retrieved</li><li>Each retrieved chunk's text</li><li>Similarity score with clear label</li><li>Source filename, page and chunk index</li></ul></div>
+          <div class="card soft"><h4>Panel D — Service feedback</h4><ul><li>Upload and query success/error messages</li><li>Latency if available</li><li>Clear notice when no documents exist</li><li>Responsive layout and accessible controls</li></ul></div>
+        </div>
+        <div class="callout good"><b>Acceptance rule:</b> A user must be able to upload a PDF and a DOCX, see both in the library, ask a question, inspect the answer's actual retrieved chunks and scores, then delete a document from the same frontend.</div>
+      </section>
+
+      <section class="section" id="evaluation">
+        <div class="kicker">Graded evidence — critical</div>
+        <h2>08. Retrieval and answer evaluation plan</h2>
+        <p class="intro">A working demo alone is not sufficient. The assignment explicitly requires real, reproducible numbers and a comparison of at least two configurations.</p>
+        <h3>Golden question set</h3>
+        <div class="grid3">
+          <div class="card"><div style="font-size:28px;font-weight:850;color:var(--navy)">25+</div><b>Total questions</b><p class="small">Minimum set size required by the brief.</p></div>
+          <div class="card"><div style="font-size:28px;font-weight:850;color:var(--green)">20+</div><b>Answerable questions</b><p class="small">Label the correct source document and page/chunk, with a reference answer.</p></div>
+          <div class="card"><div style="font-size:28px;font-weight:850;color:var(--amber)">5+</div><b>Unanswerable questions</b><p class="small">The corpus must not contain the answer; measure correct abstention.</p></div>
+        </div>
+        <p>Include direct factual questions, paraphrased questions, multi-part questions and questions that require evidence across more than one passage. Do not invent reference answers or source locations.</p>
+        <h3>Metrics and comparison</h3>
+        <div class="tablewrap"><table>
+          <thead><tr><th>Metric</th><th>What it tells us</th><th>How we report it</th></tr></thead>
+          <tbody>
+            <tr><td>Hit Rate@k</td><td>Whether at least one relevant source appears in the top-k results.</td><td>Percentage of questions with a hit.</td></tr>
+            <tr><td>Recall@k</td><td>How many of the labelled relevant chunks are retrieved in the top-k.</td><td>Mean recall across answerable questions.</td></tr>
+            <tr><td>MRR</td><td>How highly the first relevant result is ranked.</td><td>Mean reciprocal rank.</td></tr>
+            <tr><td>Faithfulness</td><td>Whether answer claims are supported by retrieved context.</td><td>RAGAS/justified judge score plus manual spot checks.</td></tr>
+            <tr><td>Answer correctness</td><td>Whether the answer matches the reference answer.</td><td>Rubric-based assessment, with judge/manual verification.</td></tr>
+            <tr><td>Abstention quality</td><td>Whether unanswerable questions are correctly refused without fabricated citations.</td><td>Correct abstentions and false-answer cases.</td></tr>
+            <tr><td>Latency / cost</td><td>Operational speed and approximate expense per question.</td><td>Average and p50/p95 where sample size supports it; token/cost estimates when provider usage is available.</td></tr>
+          </tbody>
+        </table></div>
+        <h3>Reproducible evaluation procedure</h3>
+        <ol><li>Freeze the corpus and golden set version.</li><li>Run Configuration A and save raw retrieved results.</li><li>Run Configuration B against the exact same questions.</li><li>Calculate Hit Rate@k, Recall@k and MRR with the same relevance labels.</li><li>Evaluate answer faithfulness, correctness and unanswerable handling.</li><li>Inspect failures and explain why they happened.</li><li>Choose the better configuration using measured results and document trade-offs in <code>EVAL.md</code>.</li></ol>
+        <div class="callout warn"><b>No fabricated results:</b> Metrics must come from executed experiments. If a metric has not been run, label it “not measured” rather than filling in a plausible-looking number.</div>
+      </section>
+
+      <section class="section" id="quality">
+        <div class="kicker">Reliability and safety</div>
+        <h2>09. Guardrails, errors and test strategy</h2>
+        <div class="grid2">
+          <div class="card"><h4>Input and upload checks</h4><ul><li>Empty, whitespace-only or overly long questions</li><li>Unsupported file type and MIME mismatch</li><li>Zero-byte, corrupt or text-empty files</li><li>Maximum upload size and bounded extraction</li><li>Prompt injection / jailbreak attempts in questions</li></ul></div>
+          <div class="card"><h4>Output and document checks</h4><ul><li>Uploaded content is untrusted data, not instructions</li><li>Answers must be supported by retrieved evidence</li><li>Citations must belong to retrieved chunk IDs</li><li>Abstain when evidence is insufficient</li><li>Never expose system prompts, secrets or API keys</li></ul></div>
+        </div>
+        <h3>HTTP error contract</h3>
+        <div class="tablewrap"><table>
+          <thead><tr><th>Status</th><th>Use</th><th>Validation case</th></tr></thead>
+          <tbody>
+            <tr><td><code>200</code></td><td>Successful search, answer or listing</td><td>Normal question and document listing</td></tr>
+            <tr><td><code>201</code></td><td>Document created and ingested</td><td>Valid PDF/DOCX upload</td></tr>
+            <tr><td><code>204</code></td><td>Document deleted</td><td>Delete existing document</td></tr>
+            <tr><td><code>400</code></td><td>Empty file or no extractable text</td><td>Empty or scanned-only PDF without OCR</td></tr>
+            <tr><td><code>404</code></td><td>Document not found</td><td>Delete/read unknown ID</td></tr>
+            <tr><td><code>409</code></td><td>Duplicate content</td><td>Upload same file twice</td></tr>
+            <tr><td><code>415</code></td><td>Unsupported media type</td><td>Upload an unsupported extension/type</td></tr>
+            <tr><td><code>422</code></td><td>Invalid request data</td><td>Malformed question payload</td></tr>
+            <tr><td><code>429</code></td><td>Rate limit exceeded</td><td>Rate-limit test if configured</td></tr>
+            <tr><td><code>503</code></td><td>Required provider/storage unavailable</td><td>Mock timeout or provider outage</td></tr>
+          </tbody>
+        </table></div>
+        <h3>Test layers</h3>
+        <ul><li><b>Unit tests:</b> extraction, hashing, duplicate detection, chunk metadata, citation validation, thresholds and guardrails.</li><li><b>API tests:</b> upload/list/ask/delete, response schemas, status codes and error handling using FastAPI TestClient.</li><li><b>Integration tests:</b> local vector persistence and one controlled real-provider smoke test; mock paid APIs in routine tests.</li><li><b>Regression tests:</b> after deletion, deleted chunks must never be returned; every citation must map to retrieved evidence.</li><li><b>Notebooks:</b> demonstrate extraction, chunking, embeddings/retrieval and answering step by step, as required by the brief.</li><li><b>Documentation quality:</b> module/class/function docstrings, useful inline comments for non-obvious logic, type hints, clear README setup instructions and architecture/decision records.</li></ul>
+      </section>
+
+      <section class="section" id="phases">
+        <div class="kicker">Implementation order</div>
+        <h2>10. Build sequence and completion gates</h2>
+        <p class="intro">Each phase ends with a working, testable result. We do not move to the next phase while a critical acceptance check is failing.</p>
+        <div class="phase"><div class="phase-num">1</div><div class="phase-body"><h4>Repository and configuration audit <span class="tag">First</span></h4><p>Inspect existing files, Python version, current branch, dependencies, <code>.env</code>, <code>.env.example</code> and <code>.gitignore</code>. Confirm Neon connection string, Pinecone API key/index settings and Gemini API key variable names (values stay private). Preserve existing work.</p><b>Gate:</b> clean project baseline; no secrets tracked; app configuration loads safely.</div></div>
+        <div class="phase"><div class="phase-num">2</div><div class="phase-body"><h4>Corpus and notebook experiments</h4><p>Select a representative corpus with both PDF and DOCX, record file inventory, and build notebooks for extraction, chunking, local BGE embeddings and Pinecone retrieval. Prepare source-grounded golden questions.</p><b>Gate:</b> extracted text and page/section metadata manually checked on sample files.</div></div>
+        <div class="phase"><div class="phase-num">3</div><div class="phase-body"><h4>Ingestion and persistence</h4><p>Implement validation, SHA-256 deduplication, extraction, chunking, local BGE embeddings, Pinecone upsert, Neon document/chunk persistence, listing and coordinated deletion.</p><b>Gate:</b> upload PDF and DOCX; duplicate returns 409; deletion removes every vector.</div></div>
+        <div class="phase"><div class="phase-num">4</div><div class="phase-body"><h4>Retrieval and grounded generation</h4><p>Implement local BGE query embeddings, Pinecone top-k search, Neon chunk lookup, score semantics, Gemini grounded prompts, citation validation and abstention.</p><b>Gate:</b> answerable question returns valid citations; unanswerable question refuses without invented sources.</div></div>
+        <div class="phase"><div class="phase-num">5</div><div class="phase-body"><h4>API and frontend</h4><p>Expose the agreed routes and build the HTML/CSS/JS interface with upload, list, ask, answer, citations and retrieved-chunk inspector.</p><b>Gate:</b> complete user journey works without Swagger or manual database operations.</div></div>
+        <div class="phase"><div class="phase-num">6</div><div class="phase-body"><h4>Guardrails, errors and pytest</h4><p>Cover invalid input, injection attempts, unsafe document instructions, unsupported files, duplicate files, Neon/Pinecone/Gemini timeouts, rate limits and coordinated deletion behavior.</p><b>Gate:</b> tests are executed and passing; at least two failure cases are visible for the demo.</div></div>
+        <div class="phase"><div class="phase-num">7</div><div class="phase-body"><h4>Evaluation and design justification</h4><p>Run both configurations on the golden set, save results, analyze failures and complete <code>DESIGN.md</code> and <code>EVAL.md</code>.</p><b>Gate:</b> actual metrics, reproducible command and a justified winner are documented.</div></div>
+        <div class="phase"><div class="phase-num">8</div><div class="phase-body"><h4>Documentation, deployment and demo evidence</h4><p>Complete README, pinned requirements, AI-use record, Swagger screenshots, deployment URL and demo recording.</p><b>Gate:</b> fresh setup instructions work; deployed app uses persistent storage and environment secrets safely.</div></div>
+        <div class="callout warn"><b>Schedule reality:</b> The supplied brief sets the deadline as 25 November 2026. The date is extremely close. We should protect the mandatory ingestion, grounded answer, frontend evidence, evaluation, tests and documentation before attempting optional authentication or a React rewrite. I cannot promise completion time until the repository and corpus are inspected.</div>
+      </section>
+
+      <section class="section" id="git">
+        <div class="kicker">Version control</div>
+        <h2>11. Git and GitHub workflow</h2>
+        <p class="intro">Use <code>main</code> as the stable branch and keep implementation isolated in focused feature branches, as requested by the instructor.</p>
+        <pre>main
+ ├── feature/project-setup
+ ├── feature/ingestion
+ ├── feature/retrieval-generation
+ ├── feature/frontend
+ ├── feature/guardrails-tests
+ └── feature/evaluation-docs</pre>
+        <ul><li>Before any work: check <code>git status</code>, current branch and remote.</li><li>Commit small working increments with meaningful messages.</li><li>Merge a feature only after its tests pass.</li><li>Keep <code>.env</code>, local model/cache files, uploaded private documents, notebook outputs containing private data and temporary files out of Git.</li><li>Commit <code>.env.example</code> with safe placeholder values only.</li><li>Use pinned dependencies in <code>requirements.txt</code>.</li></ul>
+        <div class="callout good"><b>Secret-safety check:</b> confirm <code>.env</code> is ignored and is not already tracked. If a real key was ever committed, removing the file in a later commit is not enough — rotate the exposed key.</div>
+      </section>
+
+      <section class="section" id="submission">
+        <div class="kicker">Final handover</div>
+        <h2>12. Submission and demo checklist</h2>
+        <p class="intro">The final package must prove the system works and that you understand the decisions behind it.</p>
+        <div class="grid2">
+          <div class="card"><h4>Files and artifacts</h4><ul><li>Public GitHub repository link</li><li>Complete, clean source code</li><li>Submitted Jupyter notebooks</li><li>Pinned <code>requirements.txt</code> and <code>.env.example</code></li><li><code>README.md</code> setup and run instructions</li><li><code>DESIGN.md</code> design justifications</li><li><code>EVAL.md</code> golden set, metrics and failure analysis</li><li>Swagger screenshots</li><li>AI usage documentation</li></ul></div>
+          <div class="card"><h4>Demo video sequence</h4><ol><li>Introduce corpus and service.</li><li>Walk through architecture and data flow.</li><li>Explain chunking, embedding, vector DB and LLM choices.</li><li>Upload PDF and DOCX; show document list.</li><li>Ask at least three questions and inspect citations/chunks/scores.</li><li>Show an unanswerable question.</li><li>Delete a document and prove it is no longer retrieved.</li><li>Demonstrate guardrails, error cases and handled edge cases.</li><li>Run evaluation and explain comparison/failures.</li><li>Run tests and show Swagger docs.</li><li>Show any completed bonus features.</li></ol></div>
+        </div>
+      </section>
+
+      <section class="section" id="risks">
+        <div class="kicker">Items to resolve before implementation</div>
+        <h2>13. Risks and open decisions</h2>
+        <div class="card amber">
+          <div class="decision"><span class="dot"></span><div><b>Corpus is not specified in the brief.</b><span class="muted">We need your actual sample PDFs and DOCX files, or your approval of a chosen public/domain corpus. The golden set must be derived from that corpus.</span></div></div>
+          <div class="decision"><span class="dot"></span><div><b>Provider and environment variable names are unknown.</b><span class="muted">Proposed variables: <code>NEON_DATABASE_URL</code>, <code>PINECONE_API_KEY</code>, <code>PINECONE_INDEX_NAME</code>, <code>GEMINI_API_KEY</code>. We will check your existing names first and will not display or request secret values.</span></div></div>
+          <div class="decision"><span class="dot"></span><div><b>Existing repository structure is not visible yet.</b><span class="muted">We need the repository URL or a file-tree screenshot/output before deciding what to create, retain or adjust.</span></div></div>
+          <div class="decision"><span class="dot"></span><div><b>Scanned PDFs and tables may need special handling.</b><span class="muted">OCR and table extraction are not assumed; sample documents will determine whether they are necessary.</span></div></div>
+          <div class="decision"><span class="dot"></span><div><b>Deployment requires persistent storage.</b><span class="muted">Neon and Pinecone are managed remote services, which avoids relying on ephemeral local database/vector files. The API host still needs an appropriate free or low-cost deployment tier.</span></div></div>
+          <div class="decision"><span class="dot"></span><div><b>Evaluation quality depends on reliable labels.</b><span class="muted">No metric should be reported until questions and source locations are checked against the selected corpus.</span></div></div>
+        </div>
+      </section>
+
+      <section class="section" id="references">
+        <div class="kicker">Official documentation checked</div>
+        <h2>Reference links for the selected stack</h2>
+        <ul>
+          <li><a href="https://neon.com/docs/introduction/pro-plan" target="_blank" rel="noopener">Neon plans and free-tier limits</a></li>
+          <li><a href="https://www.pinecone.io/pricing/" target="_blank" rel="noopener">Pinecone pricing and Starter plan allowances</a></li>
+          <li><a href="https://docs.pinecone.io/guides/index-data/create-an-index" target="_blank" rel="noopener">Pinecone index creation and configuration</a></li>
+          <li><a href="https://huggingface.co/BAAI/bge-small-en-v1.5" target="_blank" rel="noopener">BGE-small-en-v1.5 model card, license and evaluation</a></li>
+          <li><a href="https://huggingface.co/BAAI/bge-m3" target="_blank" rel="noopener">BGE-M3 multilingual model card</a></li>
+          <li><a href="https://ai.google.dev/gemini-api/docs/pricing" target="_blank" rel="noopener">Gemini API pricing and free-tier terms</a></li>
+        </ul>
+      </section>
+
+      <section class="section" id="approval">
+        <div class="kicker">Your review gate</div>
+        <h2>14. Please review and approve the blueprint</h2>
+        <p class="intro">Use the checklist to mark the points you agree with. Your selections are saved only in this browser on this device; they do not change the project repository.</p>
+        <ul class="checklist" id="reviewList">
+          <li><input type="checkbox" id="r1"><label for="r1">I approve the modular FastAPI backend architecture.</label></li>
+          <li><input type="checkbox" id="r2"><label for="r2">I approve HTML, CSS and vanilla JavaScript for the first frontend version.</label></li>
+          <li><input type="checkbox" id="r3"><label for="r3">I approve Neon PostgreSQL for document/chunk metadata and Pinecone Starter for vector storage.</label></li>
+          <li><input type="checkbox" id="r4"><label for="r4">I agree to compare two chunking configurations and select the winner using real evaluation results.</label></li>
+          <li><input type="checkbox" id="r5"><label for="r5">I agree that the golden questions and reference answers must come from the actual corpus, not invented data.</label></li>
+          <li><input type="checkbox" id="r6"><label for="r6">I approve implementing mandatory features before optional bonus features.</label></li>
+          <li><input type="checkbox" id="r7"><label for="r7">I agree to keep API keys and local/private data out of Git.</label></li>
+          <li><input type="checkbox" id="r8"><label for="r8">I approve the proposed API routes as the starting contract.</label></li>
+          <li><input type="checkbox" id="r9"><label for="r9">I approve BAAI/bge-small-en-v1.5 as the default local English embedding model, subject to a corpus test.</label></li>
+          <li><input type="checkbox" id="r13"><label for="r13">I approve Gemini 2.5 Flash free tier for answer generation, subject to quotas and data-use terms.</label></li>
+          <li><input type="checkbox" id="r14"><label for="r14">I understand the optional multilingual path would use a separate BGE-M3 model and 1,024-dimensional Pinecone index.</label></li>
+          <li><input type="checkbox" id="r15"><label for="r15">I approve the proposed folder structure, subject to checking the existing repository first.</label></li>
+          <li><input type="checkbox" id="r10"><label for="r10">I agree to execute and document tests, notebooks and evaluation results.</label></li>
+          <li><input type="checkbox" id="r11"><label for="r11">I agree not to begin implementation until the corpus and provider choices are confirmed.</label></li>
+          <li><input type="checkbox" id="r12"><label for="r12">I understand that deployment and the demo evidence are part of the final submission.</label></li>
+        </ul>
+        <div class="callout good"><b>After approval, the next action is a repository audit — not bulk code generation.</b> We will inspect your current tree and configuration safely, finalize the exact stack based on your existing environment, then implement Phase 1 on a feature branch.</div>
+        <p><b>What to send with your approval:</b> the GitHub repository URL (if public), or a screenshot/copy of the VS Code Explorer tree; the names of environment variables in <code>.env.example</code> with all values redacted; confirmation that you have created Neon and Pinecone projects (or need setup guidance); and the sample corpus or its planned location.</p>
+        <div class="actions"><button class="btn primary" onclick="copyApproval()">Copy my review status</button><button class="btn" onclick="clearReview()">Clear checklist</button></div>
+        <p class="small" id="copyStatus" aria-live="polite"></p>
+      </section>
+    </main>
+  </div>
+  <div class="footer">Portfolio 01 · Production RAG Service · Updated stack proposal · Review blueprint only · No application code has been implemented by this document.</div>
+</div>
+<script>
+const boxes=[...document.querySelectorAll('#reviewList input[type="checkbox"]')];
+const progress=document.getElementById('progress');
+const progressText=document.getElementById('progressText');
+function updateProgress(){
+  const count=boxes.filter(x=>x.checked).length;
+  progress.style.width=(count/boxes.length*100)+'%';
+  progressText.textContent=count+' of '+boxes.length+' review items checked';
+  boxes.forEach(x=>{try{localStorage.setItem('rag-review-'+x.id,x.checked?'1':'0')}catch(e){}});
+}
+boxes.forEach(x=>{
+  try{x.checked=localStorage.getItem('rag-review-'+x.id)==='1'}catch(e){}
+  x.addEventListener('change',updateProgress);
+});
+updateProgress();
+function copyApproval(){
+  const lines=boxes.map(x=>(x.checked?'[x] ':'[ ] ')+x.nextElementSibling.textContent);
+  const textOut='Production RAG Service — Review status\n'+lines.join('\n')+
+    '\n\nApproval is not implementation authorization until corpus, provider and repository audit are confirmed.';
+  const status=document.getElementById('copyStatus');
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(textOut).then(()=>status.textContent='Review checklist copied.').catch(()=>status.textContent='Clipboard access unavailable; use Print / Save PDF instead.');
+  }else{status.textContent='Clipboard access unavailable; use Print / Save PDF instead.';}
+}
+function clearReview(){
+  boxes.forEach(x=>{x.checked=false;try{localStorage.removeItem('rag-review-'+x.id)}catch(e){}});
+  updateProgress();
+  document.getElementById('copyStatus').textContent='Checklist cleared.';
+}
+</script>
+</body>
+</html>
