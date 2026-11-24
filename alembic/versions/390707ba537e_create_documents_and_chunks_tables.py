@@ -1,7 +1,7 @@
 """create documents and chunks tables
 
 Revision ID: 390707ba537e
-Revises: 
+Revises:
 Create Date: 2026-11-25 02:08:24.228160
 
 """
