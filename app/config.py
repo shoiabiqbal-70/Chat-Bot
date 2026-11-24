@@ -23,6 +23,7 @@ class Settings(BaseSettings):
 
     # Neon PostgreSQL
     neon_database_url: SecretStr | None = None
+    neon_migration_database_url: SecretStr | None = None
 
     # Pinecone
     pinecone_api_key: SecretStr | None = None

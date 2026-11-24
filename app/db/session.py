@@ -1,6 +1,7 @@
 
 """Asynchronous database connection and session management."""
 
+import ssl
 from collections.abc import AsyncIterator
 from functools import lru_cache
 
@@ -16,15 +17,15 @@ from sqlalchemy.ext.asyncio import (
 from app.config import settings
 
 
-def _prepare_database_url(raw_url: str) -> tuple[URL, bool]:
+def _prepare_database_url(raw_url: str) -> tuple[URL, ssl.SSLContext]:
     """Prepare a Neon PostgreSQL URL for asyncpg."""
 
     try:
         url = make_url(raw_url)
-    except Exception as exc:
+    except Exception:
         raise ValueError(
             "NEON_DATABASE_URL is not a valid database URL."
-        ) from exc
+        ) from None
 
     if url.drivername in {"postgres", "postgresql"}:
         url = url.set(drivername="postgresql+asyncpg")
@@ -36,11 +37,16 @@ def _prepare_database_url(raw_url: str) -> tuple[URL, bool]:
     sslmode = query.pop("sslmode", None)
     query.pop("channel_binding", None)
 
-    use_ssl = str(sslmode or "require").lower() != "disable"
+    if str(sslmode or "require").lower() not in {
+        "require", "verify-ca", "verify-full"
+    }:
+        raise ValueError("A secure TLS connection is required.")
+
+    ssl_context = ssl.create_default_context()
 
     url = url.set(query=query)
 
-    return url, use_ssl
+    return url, ssl_context
 
 
 @lru_cache(maxsize=1)
@@ -57,7 +63,7 @@ def get_engine() -> AsyncEngine:
     if not raw_url:
         raise RuntimeError("NEON_DATABASE_URL is empty.")
 
-    database_url, use_ssl = _prepare_database_url(raw_url)
+    database_url, ssl_context = _prepare_database_url(raw_url)
 
     return create_async_engine(
         database_url,
@@ -67,7 +73,7 @@ def get_engine() -> AsyncEngine:
         max_overflow=5,
         pool_timeout=30,
         pool_recycle=1800,
-        connect_args={"ssl": use_ssl},
+        connect_args={"ssl": ssl_context},
     )
 
 
