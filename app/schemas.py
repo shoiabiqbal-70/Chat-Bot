@@ -1,7 +1,11 @@
 ﻿"""Pydantic schemas used by the API."""
 
 from pydantic import BaseModel, Field
+from datetime import datetime
+from typing import Literal
+from uuid import UUID
 
+from pydantic import ConfigDict
 
 class HealthResponse(BaseModel):
     """Response returned by the health endpoint."""
@@ -15,3 +19,39 @@ class MessageResponse(BaseModel):
     """Generic API message response."""
 
     message: str
+
+
+class DocumentUploadResponse(BaseModel):
+    """Represent a successfully registered document."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID = Field(
+        description="Unique document identifier."
+    )
+
+    filename: str = Field(
+        description="Original sanitized filename."
+    )
+
+    sha256: str = Field(
+        description="SHA-256 content checksum."
+    )
+
+    mime_type: str = Field(
+        description="Validated document MIME type."
+    )
+
+    status: Literal[
+        "pending",
+        "processing",
+        "completed",
+        "failed",
+        "deleting",
+    ] = Field(
+        description="Current document processing status."
+    )
+
+    created_at: datetime = Field(
+        description="Document registration timestamp."
+    )
