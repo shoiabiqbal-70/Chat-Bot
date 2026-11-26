@@ -1,0 +1,31 @@
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    HF_HOME=/opt/model-cache \
+    DOCUMENT_STORAGE_DIR=/tmp/uploads \
+    OMP_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1 \
+    TOKENIZERS_PARALLELISM=false \
+    MALLOC_ARENA_MAX=2
+
+WORKDIR /srv/app
+
+COPY requirements.txt .
+# Keep the Docker image CPU-only; the default PyPI torch build pulls unused CUDA libraries.
+RUN python -m pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
+    && python -m pip install --no-cache-dir -r requirements.txt \
+    && python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-small-en-v1.5')"
+
+COPY app ./app
+COPY frontend ./frontend
+COPY alembic ./alembic
+COPY alembic.ini .
+
+RUN useradd --create-home --uid 10001 rag \
+    && mkdir -p /tmp/uploads \
+    && chown -R rag:rag /tmp/uploads /opt/model-cache /srv/app
+
+USER rag
+
+CMD ["sh", "-c", "python -m alembic upgrade head && exec python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000}"]

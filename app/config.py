@@ -3,7 +3,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,7 +19,9 @@ class Settings(BaseSettings):
 
     app_name: str = "Production RAG Service"
     app_env: Literal["development", "testing", "production"] = "development"
-    debug: bool = True
+    app_debug: bool = False
+    app_access_username: str = "admin"
+    app_access_password: SecretStr | None = None
 
     # Neon PostgreSQL
     neon_database_url: SecretStr | None = None
@@ -36,13 +38,15 @@ class Settings(BaseSettings):
     embedding_dimension: int = 384
     embedding_device: str = "cpu"
 
-    # Gemini
-    gemini_api_key: SecretStr | None = None
-    gemini_model: str = "gemini-2.5-flash"
+    # Groq
+    groq_api_key: SecretStr | None = None
+    groq_model: str = "openai/gpt-oss-20b"
 
     # RAG settings
-    max_upload_size_mb: int = 20
-    top_k: int = 5
+    max_upload_size_mb: int = Field(default=20, ge=1, le=100)
+    top_k: int = Field(default=5, ge=1, le=100)
+    min_similarity_score: float = Field(default=0.58, ge=0.0, le=1.0)
+    document_storage_dir: str = "data/uploads"
 
 
 @lru_cache

@@ -28,6 +28,13 @@ class DocumentRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_by_id_for_update(self, document_id: UUID) -> Document | None:
+        """Lock one row while claiming a document for processing."""
+        result = await self.session.execute(
+            select(Document).where(Document.id == document_id).with_for_update()
+        )
+        return result.scalar_one_or_none()
+
     async def get_by_sha256(self, sha256: str) -> Document | None:
         """Retrieve a document by its SHA-256 digest."""
         result = await self.session.execute(

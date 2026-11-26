@@ -22,8 +22,53 @@ from app.main import app
 from app.models import Document
 
 
+def test_atomic_ingest_returns_completed_document(client, session, monkeypatch):
+    """The main upload route must report success only after indexing."""
+    from app.api import documents as module
+    from app.repositories import DocumentRepository
+
+    async def fake_process(document_id, db, storage, vectors):
+        document = session.add.call_args.args[0]
+        document.status = "completed"
+        return 3
+
+    async def fake_get_by_id(self, document_id):
+        return session.add.call_args.args[0]
+
+    monkeypatch.setattr(module, "process_document", fake_process)
+    monkeypatch.setattr(module, "VectorStore", lambda: object())
+    monkeypatch.setattr(DocumentRepository, "get_by_id", fake_get_by_id)
+    response = client.post("/api/documents", files={
+        "file": ("sample.txt", CONTENT, "text/plain")
+    })
+    assert response.status_code == 201
+    assert response.json()["status"] == "completed"
+    assert response.json()["chunk_count"] == 3
+
+
 UPLOAD_URL = "/api/documents/upload"
+DOCUMENTS_URL = "/api/documents"
 CONTENT = b"Production RAG API integration test."
+
+
+def test_list_documents_empty(client, session):
+    result = MagicMock()
+    result.scalars.return_value.all.return_value = []
+    session.execute.return_value = result
+    response = client.get(DOCUMENTS_URL)
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_get_missing_document(client, session):
+    session.execute.return_value.scalar_one_or_none.return_value = None
+    response = client.get(f"{DOCUMENTS_URL}/{UUID(int=1)}")
+    assert response.status_code == 404
+
+
+def test_list_documents_rejects_invalid_pagination(client):
+    response = client.get(f"{DOCUMENTS_URL}?limit=0")
+    assert response.status_code == 422
 
 DOCX_MIME = (
     "application/vnd.openxmlformats-officedocument"

@@ -8,8 +8,8 @@ from typing import Protocol
 from app.ingestion.extraction_models import ExtractedDocument
 
 
-DEFAULT_CHUNK_SIZE = 512
-DEFAULT_CHUNK_OVERLAP = 75
+DEFAULT_CHUNK_SIZE = 320
+DEFAULT_CHUNK_OVERLAP = 45
 
 
 class TokenizerProtocol(Protocol):

@@ -224,3 +224,6 @@ __marimo__/
 
 # Private uploaded documents
 /data/uploads/
+/data/pytest*/
+/evals/results/*
+!/evals/results/.gitkeep

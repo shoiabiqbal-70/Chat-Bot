@@ -6,16 +6,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from uuid import UUID
 
+from app.config import settings
+
 from app.ingestion.validation import (
     ALLOWED_MIME_TYPES,
     ValidatedUpload,
-)
-
-
-DEFAULT_STORAGE_DIR = (
-    Path(__file__).resolve().parents[2]
-    / "data"
-    / "uploads"
 )
 
 
@@ -38,10 +33,13 @@ class LocalDocumentStorage:
 
     def __init__(
         self,
-        root: str | Path = DEFAULT_STORAGE_DIR,
+        root: str | Path | None = None,
     ) -> None:
         """Initialize the configured storage directory."""
-        self.root = Path(root).expanduser().resolve()
+        location = Path(root or settings.document_storage_dir).expanduser()
+        if not location.is_absolute():
+            location = Path(__file__).resolve().parents[2] / location
+        self.root = location.resolve()
 
         try:
             self.root.mkdir(

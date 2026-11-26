@@ -1,0 +1,39 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    env_file:
+      - ../.env
+    environment:
+      APP_ENV: production
+      DOCUMENT_STORAGE_DIR: /data/uploads
+      HF_HOME: /opt/model-cache
+      PORT: "8000"
+    volumes:
+      - uploads:/data/uploads
+      - model-cache:/opt/model-cache
+    expose:
+      - "8000"
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  uploads:
+  model-cache:
+  caddy-data:
+  caddy-config:

@@ -55,3 +55,9 @@ class DocumentUploadResponse(BaseModel):
     created_at: datetime = Field(
         description="Document registration timestamp."
     )
+
+
+class DocumentIngestResponse(DocumentUploadResponse):
+    """Represent a document that is searchable after ingestion."""
+
+    chunk_count: int = Field(ge=1, description="Number of indexed chunks.")
