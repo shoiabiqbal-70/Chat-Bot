@@ -13,6 +13,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /srv/app
 
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.render.txt .
 RUN python -m pip install --no-cache-dir -r requirements.render.txt \
     && python -c "from fastembed import TextEmbedding; from tokenizers import Tokenizer; model=TextEmbedding('BAAI/bge-small-en-v1.5', threads=1, providers=['CPUExecutionProvider'], enable_cpu_mem_arena=False, max_batch_tokens=512); next(iter(model.embed(['ready']))); Tokenizer.from_pretrained('BAAI/bge-small-en-v1.5')"
