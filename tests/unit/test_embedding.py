@@ -241,3 +241,24 @@ def test_model_loading_cached(monkeypatch):
     service.embed_documents(["Second document."])
 
     assert len(calls) == 1
+
+
+def test_fastembed_backend_preserves_shape_and_query_prefix():
+    class FakeFastEmbed:
+        embedding_size = 4
+
+        def __init__(self):
+            self.last_texts = None
+
+        def embed(self, texts, batch_size):
+            self.last_texts = texts
+            return iter([np.array([3, 4, 0, 0], dtype=np.float32) for _ in texts])
+
+    model = FakeFastEmbed()
+    service = EmbeddingService(model_name="test-model", dimension=4,
+                               model=model, backend="fastembed")
+    vectors = service.embed_documents(["first", "second"])
+    assert vectors.shape == (2, 4)
+    assert np.allclose(np.linalg.norm(vectors, axis=1), 1)
+    assert service.embed_query("question").shape == (4,)
+    assert model.last_texts == [QUERY_INSTRUCTION + "question"]

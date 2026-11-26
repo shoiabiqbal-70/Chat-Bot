@@ -21,5 +21,7 @@ services:
         sync: false
       - key: DOCUMENT_STORAGE_DIR
         value: /tmp/uploads
+      - key: EMBEDDING_BACKEND
+        value: fastembed
       - key: MAX_UPLOAD_SIZE_MB
         value: "10"

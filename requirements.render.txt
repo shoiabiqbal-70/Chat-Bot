@@ -1,0 +1,17 @@
+# Small CPU-only runtime for Render Free. Local development uses requirements.txt.
+fastapi==0.165.0
+uvicorn[standard]==0.54.0
+pydantic-settings==2.16.3
+python-multipart==0.0.34
+httpx==0.28.1
+sqlalchemy[asyncio]==2.1.9
+asyncpg==0.32.0
+alembic==1.20.1
+pypdf==6.21.4
+python-docx==1.2.0
+anyio==4.16.0
+tokenizers==0.23.3
+numpy==2.5.5
+pinecone==10.3.0
+fastembed==0.9.1
+onnxruntime==1.32.0

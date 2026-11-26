@@ -3,6 +3,8 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     HF_HOME=/opt/model-cache \
+    FASTEMBED_CACHE_PATH=/opt/model-cache/fastembed \
+    EMBEDDING_BACKEND=fastembed \
     DOCUMENT_STORAGE_DIR=/tmp/uploads \
     OMP_NUM_THREADS=1 \
     MKL_NUM_THREADS=1 \
@@ -11,11 +13,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /srv/app
 
-COPY requirements.txt .
-# Keep the Docker image CPU-only; the default PyPI torch build pulls unused CUDA libraries.
-RUN python -m pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
-    && python -m pip install --no-cache-dir -r requirements.txt \
-    && python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-small-en-v1.5')"
+COPY requirements.render.txt .
+RUN python -m pip install --no-cache-dir -r requirements.render.txt \
+    && python -c "from fastembed import TextEmbedding; from tokenizers import Tokenizer; model=TextEmbedding('BAAI/bge-small-en-v1.5', threads=1, providers=['CPUExecutionProvider'], enable_cpu_mem_arena=False, max_batch_tokens=512); next(iter(model.embed(['ready']))); Tokenizer.from_pretrained('BAAI/bge-small-en-v1.5')"
 
 COPY app ./app
 COPY frontend ./frontend

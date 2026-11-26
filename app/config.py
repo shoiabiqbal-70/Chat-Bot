@@ -33,6 +33,7 @@ class Settings(BaseSettings):
 
     # Local embeddings
     embedding_model: str = "BAAI/bge-small-en-v1.5"
+    embedding_backend: Literal["sentence_transformers", "fastembed"] = "sentence_transformers"
     embedding_dimension: int = 384
     embedding_device: str = "cpu"
 

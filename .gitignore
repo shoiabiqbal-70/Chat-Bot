@@ -225,5 +225,6 @@ __marimo__/
 # Private uploaded documents
 /data/uploads/
 /data/pytest*/
+/data/model-cache/
 /evals/results/*
 !/evals/results/.gitkeep

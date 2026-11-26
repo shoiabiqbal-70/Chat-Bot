@@ -5,7 +5,6 @@ from functools import lru_cache
 from typing import Sequence
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
 
 from app.config import settings
 
@@ -23,10 +22,11 @@ class EmbeddingError(RuntimeError):
 def _load_model(
     model_name: str,
     device: str,
-) -> SentenceTransformer:
+):
     """Load and cache an embedding model."""
 
     try:
+        from sentence_transformers import SentenceTransformer
         return SentenceTransformer(
             model_name,
             device=device,
@@ -35,6 +35,18 @@ def _load_model(
         raise EmbeddingError(
             "Unable to load the embedding model."
         ) from exc
+
+
+@lru_cache(maxsize=2)
+def _load_fastembed_model(model_name: str):
+    """Load the quantized ONNX model for memory-limited hosting."""
+    try:
+        from fastembed import TextEmbedding
+        return TextEmbedding(model_name=model_name, threads=1,
+                             providers=["CPUExecutionProvider"],
+                             enable_cpu_mem_arena=False, max_batch_tokens=512)
+    except Exception as exc:
+        raise EmbeddingError("Unable to load the ONNX embedding model.") from exc
 
 
 class EmbeddingService:
@@ -46,6 +58,7 @@ class EmbeddingService:
         dimension: int | None = None,
         device: str | None = None,
         model=None,
+        backend: str | None = None,
     ) -> None:
 
         self.model_name = model_name or settings.embedding_model
@@ -55,6 +68,7 @@ class EmbeddingService:
             else settings.embedding_dimension
         )
         self.device = device or settings.embedding_device
+        self.backend = backend or settings.embedding_backend
 
         if not isinstance(self.model_name, str) or not self.model_name.strip():
             raise ValueError("Invalid embedding model name.")
@@ -65,20 +79,21 @@ class EmbeddingService:
         if not isinstance(self.device, str) or not self.device.strip():
             raise ValueError("Invalid embedding device.")
 
+        if self.backend not in {"sentence_transformers", "fastembed"}:
+            raise ValueError("Invalid embedding backend.")
+
         self._model = model
 
     def _get_model(self):
         """Return the cached model and verify its dimensions."""
 
         if self._model is None:
-            self._model = _load_model(
-                self.model_name,
-                self.device,
-            )
+            self._model = (_load_fastembed_model(self.model_name)
+                           if self.backend == "fastembed"
+                           else _load_model(self.model_name, self.device))
 
-        actual_dimension = (
-            self._model.get_sentence_embedding_dimension()
-        )
+        actual_dimension = (self._model.embedding_size if self.backend == "fastembed"
+                            else self._model.get_sentence_embedding_dimension())
 
         if actual_dimension != self.dimension:
             raise EmbeddingError(
@@ -117,13 +132,16 @@ class EmbeddingService:
         model = self._get_model()
 
         try:
-            vectors = model.encode(
-                list(texts),
-                batch_size=batch_size,
-                show_progress_bar=False,
-                convert_to_numpy=True,
-                normalize_embeddings=True,
-            )
+            if self.backend == "fastembed":
+                vectors = np.stack(list(model.embed(list(texts), batch_size=min(batch_size, 8))))
+            else:
+                vectors = model.encode(
+                    list(texts),
+                    batch_size=batch_size,
+                    show_progress_bar=False,
+                    convert_to_numpy=True,
+                    normalize_embeddings=True,
+                )
 
             vectors = np.asarray(
                 vectors,

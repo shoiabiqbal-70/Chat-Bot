@@ -23,7 +23,7 @@ Visitors create individual accounts with separate document libraries. Passwords 
 
 ## Temporary Render demo
 
-`render.yaml` defines one free Docker web service for the API and frontend. `Dockerfile.render` installs CPU-only PyTorch and caches the BGE embedding model in the image. Render Free has [512 MB RAM and an ephemeral filesystem](https://render.com/docs/free); the model may still exceed that memory limit. A successful build alone does not prove that the service can answer questions. Uploads in `/tmp/uploads` disappear after a restart or redeploy, while Neon records and Pinecone vectors remain. Use separate demo resources when possible, and reupload or delete stale documents after a restart.
+`render.yaml` defines one free Docker web service for the API and frontend. `Dockerfile.render` installs a small ONNX runtime and caches the quantized 384-dimensional BGE model in the image. This replaces the PyTorch runtime that exhausted Render Free memory during uploads. Render Free has [512 MB RAM and an ephemeral filesystem](https://render.com/docs/free); a successful build alone does not prove that uploads and answers will stay within the limit. Uploads in `/tmp/uploads` disappear after a restart or redeploy, while Neon records and Pinecone vectors remain. Use separate demo resources when possible, and reupload or delete stale documents after a restart.
 
 1. Push this repository to GitHub. In Render, select **New > Blueprint** and connect the GitHub repository. Render will read `render.yaml` and create `source-atlas-demo`. See [Render's Blueprint guide](https://render.com/docs/infrastructure-as-code).
 2. Enter values for each secret prompted by the Blueprint: `NEON_DATABASE_URL`, `NEON_MIGRATION_DATABASE_URL`, `PINECONE_API_KEY`, `PINECONE_INDEX_NAME`, and `GROQ_API_KEY`. The migration URL must be a direct Neon connection string. Never put these values in GitHub. An older Render deployment may still contain `APP_ACCESS_PASSWORD`; it is no longer used and can be removed from the service settings.
@@ -31,6 +31,8 @@ Visitors create individual accounts with separate document libraries. Passwords 
 4. Upload a small, non-sensitive PDF or DOCX. Ask a question supported by text in the file, verify the citation, ask a second question, and try an unanswerable question. Check Render logs if the service restarts or says answer generation failed. Test a redeploy before treating the demo as usable.
 
 The Blueprint disables automatic deploys so a later GitHub push does not unexpectedly restart the demo. Trigger a manual deploy in Render when ready. Documents indexed before user accounts were added have no owner and are hidden from public accounts; reupload them in an account. For reliable storage and more memory, use the VM deployment above or move originals to object storage and embeddings to a smaller or hosted model.
+
+The ONNX model is quantized. It keeps the same 384-dimensional BGE index contract, but vectors can differ slightly from the previous PyTorch model. Reindex any successfully uploaded account documents if retrieval quality changes. Delete a failed or stuck upload before retrying the same file.
 
 ## Required environment and checks
 
