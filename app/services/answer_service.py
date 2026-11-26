@@ -80,6 +80,7 @@ async def answer_question(
     question: str, session: AsyncSession, vectors: VectorStore,
     client: httpx.AsyncClient | None = None,
     document_id: UUID | None = None,
+    owner_id: UUID | None = None,
 ) -> AnswerResult:
     """Retrieve canonical chunks, generate an answer, and check citations."""
     question = validate_question(question)
@@ -92,7 +93,8 @@ async def answer_question(
     selected_document = None
     if document_id is not None:
         selected_document = await documents.get_by_id(document_id)
-        if selected_document is None or selected_document.status != "completed":
+        if (selected_document is None or selected_document.status != "completed" or
+                (owner_id is not None and selected_document.owner_id != owner_id)):
             raise ValueError("Selected document is not available for questions.")
     if count_kind:
         label_pattern = FIGURE_LABEL if count_kind == "figures" else TABLE_LABEL
@@ -129,8 +131,12 @@ async def answer_question(
     query = await anyio.to_thread.run_sync(
         lambda: get_embedding_service().embed_query(question).tolist()
     )
-    matches = (await vectors.query(query, max(settings.top_k, 20), str(document_id))
-               if document_id is not None else await vectors.query(query, settings.top_k))
+    if owner_id is not None:
+        matches = await vectors.query(query, max(settings.top_k, 20) if document_id else settings.top_k,
+                                      str(document_id) if document_id else None, str(owner_id))
+    else:
+        matches = (await vectors.query(query, max(settings.top_k, 20), str(document_id))
+                   if document_id is not None else await vectors.query(query, settings.top_k))
     evidence = []
     for match in matches:
         minimum = min(settings.min_similarity_score, 0.42) if document_id else settings.min_similarity_score
@@ -144,7 +150,8 @@ async def answer_question(
         if chunk is None:
             continue
         document = await documents.get_by_id(chunk.document_id)
-        if document is None or document.status != "completed":
+        if (document is None or document.status != "completed" or
+                (owner_id is not None and document.owner_id != owner_id)):
             continue
         if document_id is not None and document.id != document_id:
             continue

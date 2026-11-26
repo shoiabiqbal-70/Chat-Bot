@@ -64,3 +64,17 @@ def test_query_filters_selected_document():
 
     result = asyncio.run(vector_store.VectorStore(Index()).query([1.0], 5, "selected-id"))
     assert result == []
+
+
+def test_query_filters_account_and_document():
+    class Index:
+        def query(self, **kwargs):
+            assert kwargs["filter"] == {
+                "document_id": {"$eq": "selected-id"},
+                "owner_id": {"$eq": "account-id"},
+            }
+            return SimpleNamespace(matches=[])
+
+    asyncio.run(vector_store.VectorStore(Index()).query(
+        [1.0], 5, "selected-id", "account-id"
+    ))

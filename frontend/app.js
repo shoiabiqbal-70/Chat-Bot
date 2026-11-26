@@ -1,10 +1,67 @@
 const $ = (id) => document.getElementById(id);
 let documentSelectionTouched = false;
+let authMode = 'signin';
+function showWorkspace(account) {
+  $('auth-panel').hidden = true;
+  document.querySelector('main').hidden = false;
+  document.querySelector('footer').hidden = false;
+  $('account-email').textContent = account.email;
+  $('account-email').hidden = false;
+  $('signout').hidden = false;
+  refresh();
+}
+function showAuth() {
+  $('auth-panel').hidden = false;
+  document.querySelector('main').hidden = true;
+  document.querySelector('footer').hidden = true;
+  $('account-email').hidden = true;
+  $('signout').hidden = true;
+  $('documents').replaceChildren();
+  $('ask-document').replaceChildren(new Option('All documents', ''));
+  $('question').value = '';
+  $('document-total').textContent = '0';
+  $('ask-status').textContent = '';
+  $('upload-status').textContent = '';
+  $('evidence').replaceChildren();
+  $('answer').textContent = '';
+}
+function setAuthMode(mode) {
+  authMode = mode;
+  $('signin-tab').classList.toggle('active', mode === 'signin');
+  $('signup-tab').classList.toggle('active', mode === 'signup');
+  $('auth-submit').textContent = mode === 'signin' ? 'Sign in' : 'Create account';
+  $('auth-password').autocomplete = mode === 'signin' ? 'current-password' : 'new-password';
+  $('auth-status').textContent = '';
+}
+$('signin-tab').addEventListener('click', () => setAuthMode('signin'));
+$('signup-tab').addEventListener('click', () => setAuthMode('signup'));
+$('auth-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  $('auth-submit').disabled = true;
+  $('auth-status').textContent = 'Please wait…';
+  try {
+    const account = await api(`/api/auth/${authMode}`, {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email:$('auth-email').value, password:$('auth-password').value})});
+    $('auth-password').value = '';
+    $('auth-status').textContent = '';
+    showWorkspace(account);
+  } catch (error) { $('auth-status').textContent = error.message; }
+  finally { $('auth-submit').disabled = false; }
+});
+$('signout').addEventListener('click', async () => {
+  try { await api('/api/auth/signout', {method:'POST'}); } catch {}
+  showAuth();
+});
 async function api(path, options = {}) {
   const response = await fetch(path, options);
   if (!response.ok) {
     let detail = `Request failed (${response.status})`;
-    try { detail = (await response.json()).detail || detail; } catch {}
+    try {
+      const body = await response.json();
+      detail = Array.isArray(body.detail) ? body.detail.map(item => item.msg).join(' ') : (body.detail || detail);
+    } catch {}
+    if (response.status === 401 && !path.startsWith('/api/auth/')) showAuth();
     throw new Error(detail);
   }
   return response.status === 204 ? null : response.json();
@@ -92,4 +149,4 @@ $('ask-form').addEventListener('submit', async (event) => {
   } catch (error) { $('ask-status').textContent = error.message; }
   finally { button.disabled = false; }
 });
-refresh();
+api('/api/auth/me').then(showWorkspace).catch(showAuth);

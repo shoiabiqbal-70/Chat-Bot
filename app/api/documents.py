@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.db.session import get_db
+from app.api.auth import get_current_user_id
 from app.ingestion.storage import (
     LocalDocumentStorage,
     StorageError,
@@ -37,6 +38,7 @@ from app.services.vector_store import VectorStore, VectorStoreError
 
 
 logger = logging.getLogger(__name__)
+CurrentUser = Annotated[UUID | None, Depends(get_current_user_id)]
 
 
 router = APIRouter(
@@ -59,9 +61,18 @@ def get_document_storage() -> LocalDocumentStorage:
         ) from exc
 
 
+async def require_owned_document(session: AsyncSession, document_id: UUID,
+                                 owner_id: UUID | None) -> None:
+    """Hide another account's document as a missing resource."""
+    document = await DocumentRepository(session).get_by_id(document_id)
+    if document is None or (owner_id is not None and document.owner_id != owner_id):
+        raise HTTPException(status_code=404, detail="Document not found.")
+
+
 @router.get("", response_model=list[DocumentUploadResponse])
 async def list_documents(
     session: Annotated[AsyncSession, Depends(get_db)],
+    owner_id: CurrentUser,
     limit: int = 50,
     offset: int = 0,
 ) -> list[DocumentUploadResponse]:
@@ -69,7 +80,7 @@ async def list_documents(
     if not 1 <= limit <= 500 or offset < 0:
         raise HTTPException(status_code=422, detail="Invalid pagination values.")
     try:
-        documents = await DocumentRepository(session).list_documents(limit, offset)
+        documents = await DocumentRepository(session).list_documents(limit, offset, owner_id=owner_id)
     except SQLAlchemyError as exc:
         raise HTTPException(status_code=503, detail="Document database is unavailable.") from exc
     return [DocumentUploadResponse.model_validate(item) for item in documents]
@@ -79,13 +90,14 @@ async def list_documents(
 async def get_document(
     document_id: UUID,
     session: Annotated[AsyncSession, Depends(get_db)],
+    owner_id: CurrentUser,
 ) -> DocumentUploadResponse:
     """Read registration status and metadata for a document."""
     try:
         document = await DocumentRepository(session).get_by_id(document_id)
     except SQLAlchemyError as exc:
         raise HTTPException(status_code=503, detail="Document database is unavailable.") from exc
-    if document is None:
+    if document is None or (owner_id is not None and document.owner_id != owner_id):
         raise HTTPException(status_code=404, detail="Document not found.")
     return DocumentUploadResponse.model_validate(document)
 
@@ -95,8 +107,10 @@ async def process_registered_document(
     document_id: UUID,
     session: Annotated[AsyncSession, Depends(get_db)],
     storage: Annotated[LocalDocumentStorage, Depends(get_document_storage)],
+    owner_id: CurrentUser,
 ) -> dict[str, int]:
     """Index a pending or failed registered document for retrieval."""
+    await require_owned_document(session, document_id, owner_id)
     try:
         count = await process_document(document_id, session, storage, VectorStore())
     except LookupError as exc:
@@ -113,8 +127,10 @@ async def reindex_document(
     document_id: UUID,
     session: Annotated[AsyncSession, Depends(get_db)],
     storage: Annotated[LocalDocumentStorage, Depends(get_document_storage)],
+    owner_id: CurrentUser,
 ) -> dict[str, int]:
     """Replace existing vectors and chunks with the current chunk settings."""
+    await require_owned_document(session, document_id, owner_id)
     try:
         count = await process_document(document_id, session, storage,
                                        VectorStore(), reindex=True)
@@ -132,12 +148,13 @@ async def delete_document(
     document_id: UUID,
     session: Annotated[AsyncSession, Depends(get_db)],
     storage: Annotated[LocalDocumentStorage, Depends(get_document_storage)],
+    owner_id: CurrentUser,
 ) -> None:
     """Remove vectors before deleting canonical records and local content."""
     repository = DocumentRepository(session)
     try:
         document = await repository.get_by_id(document_id)
-        if document is None:
+        if document is None or (owner_id is not None and document.owner_id != owner_id):
             raise HTTPException(status_code=404, detail="Document not found.")
         extension = Path(document.filename).suffix
         document.status = "deleting"
@@ -160,9 +177,10 @@ async def ingest_document(
     file: Annotated[UploadFile, File(description="PDF, DOCX or UTF-8 TXT document.")],
     session: Annotated[AsyncSession, Depends(get_db)],
     storage: Annotated[LocalDocumentStorage, Depends(get_document_storage)],
+    owner_id: CurrentUser,
 ) -> DocumentIngestResponse:
     """Return 201 only after the uploaded file is searchable."""
-    registered = await upload_document(file, session, storage)
+    registered = await upload_document(file, session, storage, owner_id)
     try:
         count = await process_document(registered.id, session, storage, VectorStore())
     except InvalidDocumentContent as exc:
@@ -202,12 +220,14 @@ async def upload_document(
         LocalDocumentStorage,
         Depends(get_document_storage),
     ],
+    owner_id: CurrentUser,
 ) -> DocumentUploadResponse:
     """Validate, store and register an uploaded document."""
 
     service = DocumentService(
         session=session,
         storage=storage,
+        owner_id=owner_id,
     )
 
     try:

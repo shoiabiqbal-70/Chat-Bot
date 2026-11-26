@@ -2,7 +2,7 @@
 """Coordinate document validation, storage and database registration."""
 
 import logging
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import anyio
 from fastapi import UploadFile
@@ -46,7 +46,7 @@ def is_duplicate_hash_error(error: IntegrityError) -> bool:
             None,
         )
 
-        if constraint == "uq_documents_sha256":
+        if constraint in {"uq_documents_sha256", "uq_documents_owner_sha256"}:
             return True
 
     return False
@@ -59,11 +59,13 @@ class DocumentService:
         self,
         session: AsyncSession,
         storage: LocalDocumentStorage,
+        owner_id: UUID | None = None,
     ) -> None:
         """Initialize service dependencies."""
         self.session = session
         self.storage = storage
         self.repository = DocumentRepository(session)
+        self.owner_id = owner_id
 
     async def register(
         self,
@@ -77,6 +79,7 @@ class DocumentService:
 
         document = Document(
             id=document_id,
+            owner_id=self.owner_id,
             filename=validated.filename,
             sha256=validated.sha256,
             mime_type=validated.mime_type,
@@ -95,9 +98,7 @@ class DocumentService:
         # request cancellation.
         with anyio.CancelScope(shield=True):
             try:
-                existing = await self.repository.get_by_sha256(
-                    validated.sha256
-                )
+                existing = await self.repository.get_by_sha256(validated.sha256, self.owner_id)
 
                 if existing is not None:
                     raise DuplicateDocumentError(

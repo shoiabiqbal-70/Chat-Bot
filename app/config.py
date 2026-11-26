@@ -20,8 +20,6 @@ class Settings(BaseSettings):
     app_name: str = "Production RAG Service"
     app_env: Literal["development", "testing", "production"] = "development"
     app_debug: bool = False
-    app_access_username: str = "admin"
-    app_access_password: SecretStr | None = None
 
     # Neon PostgreSQL
     neon_database_url: SecretStr | None = None

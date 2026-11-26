@@ -35,10 +35,11 @@ class DocumentRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_by_sha256(self, sha256: str) -> Document | None:
+    async def get_by_sha256(self, sha256: str, owner_id: UUID | None = None) -> Document | None:
         """Retrieve a document by its SHA-256 digest."""
         result = await self.session.execute(
-            select(Document).where(Document.sha256 == sha256)
+            select(Document).where(Document.sha256 == sha256,
+                                   Document.owner_id == owner_id if owner_id is not None else Document.owner_id.is_(None))
         )
         return result.scalar_one_or_none()
 
@@ -47,6 +48,7 @@ class DocumentRepository:
         limit: int = 50,
         offset: int = 0,
         status: str | None = None,
+        owner_id: UUID | None = None,
     ) -> list[Document]:
         """Return documents with optional status filtering."""
         if limit < 1 or limit > 500:
@@ -56,6 +58,9 @@ class DocumentRepository:
             raise ValueError("Offset cannot be negative.")
 
         statement = select(Document)
+
+        if owner_id is not None:
+            statement = statement.where(Document.owner_id == owner_id)
 
         if status is not None:
             statement = statement.where(Document.status == status)

@@ -62,12 +62,18 @@ class VectorStore:
             raise VectorStoreError("Vector deletion failed.") from exc
 
     async def query(self, vector: list[float], top_k: int,
-                    document_id: str | None = None) -> list:
+                    document_id: str | None = None,
+                    owner_id: str | None = None) -> list:
         """Return scored vector matches."""
         try:
             options = {"vector": vector, "top_k": top_k, "include_metadata": True}
+            filters = {}
             if document_id is not None:
-                options["filter"] = {"document_id": {"$eq": document_id}}
+                filters["document_id"] = {"$eq": document_id}
+            if owner_id is not None:
+                filters["owner_id"] = {"$eq": owner_id}
+            if filters:
+                options["filter"] = filters
             response = await self._execute(lambda: self.index.query(**options))
             return list(response.matches or [])
         except Exception as exc:

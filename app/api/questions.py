@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
+from app.api.auth import get_current_user_id
 from app.services.answer_service import AnswerError, AnswerResult, RateLimitError, answer_question
 from app.services.vector_store import VectorStore, VectorStoreError
 
@@ -21,11 +22,12 @@ class QuestionRequest(BaseModel):
 
 @router.post("/ask", response_model=AnswerResult)
 async def ask(request: QuestionRequest,
-              session: Annotated[AsyncSession, Depends(get_db)]) -> AnswerResult:
+              session: Annotated[AsyncSession, Depends(get_db)],
+              owner_id: Annotated[UUID | None, Depends(get_current_user_id)]) -> AnswerResult:
     """Return a grounded answer and the inspected retrieval evidence."""
     try:
         return await answer_question(request.question, session, VectorStore(),
-                                     document_id=request.document_id)
+                                     document_id=request.document_id, owner_id=owner_id)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except RateLimitError as exc:

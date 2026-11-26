@@ -6,18 +6,16 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from time import perf_counter
 from uuid import uuid4
-import base64
 import logging
-import secrets
 
 from fastapi import FastAPI
 from fastapi import Request
 from fastapi.responses import FileResponse
 from fastapi.responses import RedirectResponse
-from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
 from app.api.documents import router as documents_router
+from app.api.auth import router as auth_router
 from app.api.health import router as health_router
 from app.api.questions import router as questions_router
 from app.config import settings
@@ -31,7 +29,6 @@ async def lifespan(
     """Manage application startup and shutdown resources."""
     if settings.app_env == "production":
         required = {
-            "APP_ACCESS_PASSWORD": settings.app_access_password,
             "NEON_DATABASE_URL": settings.neon_database_url,
             "NEON_MIGRATION_DATABASE_URL": settings.neon_migration_database_url,
             "PINECONE_API_KEY": settings.pinecone_api_key,
@@ -63,26 +60,6 @@ logger = logging.getLogger(__name__)
 
 
 @app.middleware("http")
-async def access_gate(request: Request, call_next):
-    """Protect the shared document workspace with HTTP Basic authentication."""
-    password = settings.app_access_password
-    if request.url.path == "/api/health" or password is None or not password.get_secret_value():
-        return await call_next(request)
-    header = request.headers.get("Authorization", "")
-    try:
-        scheme, encoded = header.split(" ", 1)
-        username, supplied = base64.b64decode(encoded, validate=True).decode("utf-8").split(":", 1)
-        valid = (scheme.lower() == "basic"
-                 and secrets.compare_digest(username, settings.app_access_username)
-                 and secrets.compare_digest(supplied, password.get_secret_value()))
-    except (ValueError, UnicodeDecodeError):
-        valid = False
-    if not valid:
-        return Response(status_code=401, headers={"WWW-Authenticate": 'Basic realm="Source Atlas"'})
-    return await call_next(request)
-
-
-@app.middleware("http")
 async def request_metrics(request: Request, call_next):
     """Log request identity, status, and latency without payloads or secrets."""
     request_id = uuid4().hex
@@ -105,6 +82,7 @@ app.include_router(
     health_router,
     prefix="/api",
 )
+app.include_router(auth_router, prefix="/api")
 
 app.include_router(
     documents_router,

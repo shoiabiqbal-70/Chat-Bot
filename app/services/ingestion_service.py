@@ -83,7 +83,8 @@ async def process_document(
              "metadata": {"document_id": str(document.id),
                           "chunk_id": str(row.id),
                           "filename": document.filename,
-                          "chunk_index": row.chunk_index}}
+                          "chunk_index": row.chunk_index,
+                          **({"owner_id": str(document.owner_id)} if getattr(document, "owner_id", None) else {})}}
             for i, row in enumerate(rows)
         ]
         upsert_started = True

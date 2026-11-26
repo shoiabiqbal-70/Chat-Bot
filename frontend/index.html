@@ -14,10 +14,26 @@
   <div class="site-shell">
     <header class="site-header">
       <a class="brand" href="/app" aria-label="Source Atlas home"><span class="brand-mark" aria-hidden="true">S<span>✦</span></span><span>Source Atlas</span></a>
-      <div class="header-right"><span class="header-pill"><span class="pulse-dot"></span>Document workspace</span><a class="header-link" href="/docs" target="_blank" rel="noopener">API docs <span aria-hidden="true">↗</span></a></div>
+      <div class="header-right"><span id="account-email" class="header-pill" hidden></span><button id="signout" class="header-link signout-button" type="button" hidden>Sign out</button></div>
     </header>
 
-    <main>
+    <section id="auth-panel" class="auth-panel" hidden aria-labelledby="auth-title">
+      <div class="auth-card">
+        <span class="section-kicker">WELCOME TO SOURCE ATLAS</span>
+        <h1 id="auth-title">Your documents, your answers.</h1>
+        <p>Create a demo account to keep your documents separate from other visitors.</p>
+        <div class="auth-tabs"><button id="signin-tab" type="button" class="active">Sign in</button><button id="signup-tab" type="button">Create account</button></div>
+        <form id="auth-form">
+          <label for="auth-email">Email</label><input id="auth-email" type="email" autocomplete="email" maxlength="320" required>
+          <label for="auth-password">Password</label><input id="auth-password" type="password" autocomplete="current-password" minlength="12" maxlength="128" required>
+          <button id="auth-submit" class="primary-button" type="submit">Sign in</button>
+        </form>
+        <p id="auth-status" class="status-text" role="status" aria-live="polite"></p>
+        <p class="auth-note">Use a unique password. This demo does not verify email addresses or offer password recovery.</p>
+      </div>
+    </section>
+
+    <main hidden>
       <section class="hero" aria-labelledby="hero-title">
         <div class="hero-copy">
           <span class="eyebrow"><span class="eyebrow-line"></span> YOUR KNOWLEDGE, WITH SOURCES</span>
@@ -57,7 +73,7 @@
       </div>
     </main>
 
-    <footer><span class="footer-brand">Source Atlas <span aria-hidden="true">✦</span></span><span>Answers grounded in your documents.</span></footer>
+    <footer hidden><span class="footer-brand">Source Atlas <span aria-hidden="true">✦</span></span><span>Answers grounded in your documents.</span></footer>
   </div>
 </body>
 </html>
