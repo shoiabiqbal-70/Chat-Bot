@@ -221,3 +221,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Private uploaded documents
+/data/uploads/
+/data/pytest*/
+/data/model-cache/
+/evals/results/*
+!/evals/results/.gitkeep

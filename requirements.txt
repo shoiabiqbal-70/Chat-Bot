@@ -1,0 +1,58 @@
+
+# ==========================================
+# Production RAG Service - Dependencies
+# Python 3.12
+# ==========================================
+
+# FastAPI backend
+fastapi==0.165.0
+uvicorn[standard]==0.54.0
+
+# Configuration and validation
+pydantic-settings==2.16.3
+python-multipart==0.0.34
+
+# Testing
+pytest==8.4.2
+httpx==0.28.1
+
+
+# ==========================================
+# Neon PostgreSQL Integration
+# ==========================================
+
+# SQLAlchemy asynchronous ORM
+sqlalchemy[asyncio]==2.1.9
+
+# PostgreSQL asynchronous driver
+asyncpg==0.32.0
+
+# Database migrations
+alembic==1.20.1
+
+# ==========================================
+# Document Extraction and Processing
+# ==========================================
+
+# PDF text extraction
+pypdf==6.21.4
+
+# DOCX text extraction
+python-docx==1.2.0
+
+# Asynchronous worker threads and cancellation
+anyio==4.16.0
+
+# Hugging Face tokenizer for embedding-compatible chunking
+tokenizers==0.23.3
+
+# ==========================================
+# Embedding Generation
+# ==========================================
+
+sentence-transformers==5.7.0
+numpy==2.5.5
+# ==========================================
+# Vector Database
+# ==========================================
+pinecone==10.3.0

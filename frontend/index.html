@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#142d36">
+  <meta name="description" content="A grounded workspace for asking questions of your documents.">
+  <title>Source Atlas · Document answers with evidence</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <div class="site-shell">
+    <header class="site-header">
+      <a class="brand" href="/app" aria-label="Source Atlas home"><span class="brand-mark" aria-hidden="true">S<span>✦</span></span><span>Source Atlas</span></a>
+      <div class="header-right"><span id="account-email" class="header-pill" hidden></span><button id="signout" class="header-link signout-button" type="button" hidden>Sign out</button></div>
+    </header>
+
+    <section id="auth-panel" class="auth-panel" hidden aria-labelledby="auth-title">
+      <div class="auth-card">
+        <span class="section-kicker">WELCOME TO SOURCE ATLAS</span>
+        <h1 id="auth-title">Your documents, your answers.</h1>
+        <p>Create a demo account to keep your documents separate from other visitors.</p>
+        <div class="auth-tabs"><button id="signin-tab" type="button" class="active">Sign in</button><button id="signup-tab" type="button">Create account</button></div>
+        <form id="auth-form">
+          <label for="auth-email">Email</label><input id="auth-email" type="email" autocomplete="email" maxlength="320" required>
+          <label for="auth-password">Password</label><input id="auth-password" type="password" autocomplete="current-password" minlength="12" maxlength="128" required>
+          <button id="auth-submit" class="primary-button" type="submit">Sign in</button>
+        </form>
+        <p id="auth-status" class="status-text" role="status" aria-live="polite"></p>
+        <p class="auth-note">Use a unique password. This demo does not verify email addresses or offer password recovery.</p>
+      </div>
+    </section>
+
+    <main hidden>
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <span class="eyebrow"><span class="eyebrow-line"></span> YOUR KNOWLEDGE, WITH SOURCES</span>
+          <h1 id="hero-title">Answers you can <em>trace.</em></h1>
+          <p>Bring a document. Ask what matters. See the passages behind every supported answer.</p>
+          <div class="hero-points"><span><i aria-hidden="true">✓</i> PDF, DOCX &amp; TXT</span><span><i aria-hidden="true">✓</i> Source citations</span><span><i aria-hidden="true">✓</i> Private key stays server side</span></div>
+        </div>
+        <div class="hero-art" aria-hidden="true"><div class="art-card art-card-back"><span></span><span></span><span></span></div><div class="art-card art-card-front"><div class="art-symbol">✳</div><span></span><span></span><span></span><div class="art-check">✓</div></div><div class="art-orbit orbit-one"></div><div class="art-orbit orbit-two"></div></div>
+      </section>
+
+      <div class="workspace-head"><div><span class="section-kicker">WORKSPACE</span><h2>Explore your sources</h2><p>Keep your files organized and your answers grounded.</p></div><div class="workspace-tag">01 / YOUR DOCUMENTS</div></div>
+
+      <div class="workspace-grid">
+        <section class="panel library-panel" aria-labelledby="library-title">
+          <div class="panel-heading"><div class="panel-icon" aria-hidden="true">▤</div><div><h3 id="library-title">Document library</h3><p>Upload and manage your sources</p></div><button id="refresh" class="icon-button" type="button" aria-label="Refresh documents" title="Refresh documents">↻</button></div>
+          <form id="upload-form" class="upload-form">
+            <label for="file">Add a document</label>
+            <div class="file-wrap"><input id="file" name="file" type="file" accept=".pdf,.docx,.txt" required><span class="file-hint">PDF, DOCX or TXT · up to 10 MB on this demo</span></div>
+            <button class="primary-button" type="submit"><span aria-hidden="true">＋</span> Upload and index</button>
+          </form>
+          <p id="upload-status" class="status-text" role="status" aria-live="polite"></p>
+          <div class="library-heading"><span>YOUR FILES</span><span id="document-total" class="count-badge">0</span></div>
+          <ul id="documents" class="document-list"></ul>
+        </section>
+
+        <section class="panel ask-panel" aria-labelledby="ask-title">
+          <div class="panel-heading"><div class="panel-icon panel-icon-accent" aria-hidden="true">✦</div><div><h3 id="ask-title">Ask your documents</h3><p>Answers linked to the passages they came from</p></div></div>
+          <form id="ask-form" class="ask-form">
+            <div class="field"><label for="ask-document">Search in</label><select id="ask-document"><option value="">All documents</option></select><p class="field-help">Choose a file for questions about that document or its total figure and table counts.</p></div>
+            <div class="field"><label for="question">Your question</label><textarea id="question" maxlength="2000" required placeholder="What does this document say about…?"></textarea></div>
+            <button class="primary-button ask-button" type="submit">Find answer <span aria-hidden="true">→</span></button>
+          </form>
+          <div class="answer-area"><p id="ask-status" class="status-text" role="status" aria-live="polite"></p><div id="answer" class="answer-text" aria-live="polite"></div></div>
+          <div class="evidence-heading"><h4>Source passages <span id="chunk-count" class="count-badge"></span></h4><span class="evidence-caption">Inspect what the answer used</span></div>
+          <div id="evidence" class="evidence-list"></div>
+        </section>
+      </div>
+    </main>
+
+    <footer hidden><span class="footer-brand">Source Atlas <span aria-hidden="true">✦</span></span><span>Answers grounded in your documents.</span></footer>
+  </div>
+</body>
+</html>

@@ -1,0 +1,34 @@
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    HF_HOME=/opt/model-cache \
+    FASTEMBED_CACHE_PATH=/opt/model-cache/fastembed \
+    EMBEDDING_BACKEND=fastembed \
+    DOCUMENT_STORAGE_DIR=/tmp/uploads \
+    OMP_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1 \
+    TOKENIZERS_PARALLELISM=false \
+    MALLOC_ARENA_MAX=2
+
+WORKDIR /srv/app
+
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.render.txt .
+RUN python -m pip install --no-cache-dir -r requirements.render.txt \
+    && python -c "from fastembed import TextEmbedding; from tokenizers import Tokenizer; model=TextEmbedding('BAAI/bge-small-en-v1.5', threads=1, providers=['CPUExecutionProvider'], enable_cpu_mem_arena=False, max_batch_tokens=512); next(iter(model.embed(['ready']))); Tokenizer.from_pretrained('BAAI/bge-small-en-v1.5')"
+
+COPY app ./app
+COPY frontend ./frontend
+COPY alembic ./alembic
+COPY alembic.ini .
+
+RUN useradd --create-home --uid 10001 rag \
+    && mkdir -p /tmp/uploads \
+    && chown -R rag:rag /tmp/uploads /opt/model-cache /srv/app
+
+USER rag
+
+CMD ["sh", "-c", "python -m alembic upgrade head && exec python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000}"]

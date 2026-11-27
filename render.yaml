@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: source-atlas-demo
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile.render
+    healthCheckPath: /api/health
+    autoDeployTrigger: off
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: NEON_DATABASE_URL
+        sync: false
+      - key: NEON_MIGRATION_DATABASE_URL
+        sync: false
+      - key: PINECONE_API_KEY
+        sync: false
+      - key: PINECONE_INDEX_NAME
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: DOCUMENT_STORAGE_DIR
+        value: /tmp/uploads
+      - key: EMBEDDING_BACKEND
+        value: fastembed
+      - key: MAX_UPLOAD_SIZE_MB
+        value: "10"
