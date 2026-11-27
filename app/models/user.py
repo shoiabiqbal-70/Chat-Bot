@@ -11,6 +11,7 @@ from app.db.base import Base
 
 
 class User(Base):
+    """Persist an account whose email is unique across the demo."""
     __tablename__ = "users"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -20,6 +21,7 @@ class User(Base):
 
 
 class UserSession(Base):
+    """Persist a revocable hash of a browser session token."""
     __tablename__ = "user_sessions"
 
     token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)

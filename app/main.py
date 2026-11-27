@@ -28,6 +28,7 @@ async def lifespan(
 ) -> AsyncIterator[None]:
     """Manage application startup and shutdown resources."""
     if settings.app_env == "production":
+        # Fail startup early if a deployed service cannot reach its providers.
         required = {
             "NEON_DATABASE_URL": settings.neon_database_url,
             "NEON_MIGRATION_DATABASE_URL": settings.neon_migration_database_url,
@@ -63,6 +64,7 @@ logger = logging.getLogger(__name__)
 async def request_metrics(request: Request, call_next):
     """Log request identity, status, and latency without payloads or secrets."""
     request_id = uuid4().hex
+    # Log metadata only: uploaded files, prompts and credentials stay private.
     started = perf_counter()
     try:
         response = await call_next(request)
@@ -91,6 +93,7 @@ app.include_router(
 app.include_router(questions_router, prefix="/api")
 
 FRONTEND = Path(__file__).resolve().parents[1] / "frontend"
+# Serving frontend and API from one origin lets browser cookies work directly.
 app.mount("/static", StaticFiles(directory=FRONTEND), name="static")
 
 

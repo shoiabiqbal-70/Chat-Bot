@@ -86,6 +86,7 @@ def validate_pdf(content: bytes) -> None:
 def validate_docx(content: bytes) -> None:
     """Check DOCX archive structure and expansion limits."""
     try:
+        # DOCX is a ZIP file; cap expanded size and entries before parsing XML.
         with zipfile.ZipFile(io.BytesIO(content)) as archive:
             entries = archive.infolist()
 
@@ -112,6 +113,8 @@ def validate_docx(content: bytes) -> None:
                 )
 
             for entry in entries:
+                # Reject paths and encrypted members that extraction cannot
+                # safely or reliably process.
                 name = entry.filename.replace("\\", "/")
                 path = PurePosixPath(name)
 
@@ -194,6 +197,7 @@ async def validate_upload(
     )
 
     if supplied_mime not in {
+        # Browsers may omit a MIME type or use octet-stream for uploads.
         "",
         "application/octet-stream",
         expected_mime,
@@ -228,6 +232,8 @@ async def validate_upload(
     buffer = bytearray()
 
     while True:
+        # Enforce the real byte limit while reading; a client-supplied size
+        # header alone cannot be trusted.
         block = await upload.read(READ_CHUNK_SIZE)
 
         if not block:

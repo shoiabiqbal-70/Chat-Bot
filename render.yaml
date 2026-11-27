@@ -1,10 +1,12 @@
 services:
+  # A single service hosts both the API and same-origin static frontend.
   - type: web
     name: source-atlas-demo
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile.render
     healthCheckPath: /api/health
+    # Demo deployments are started manually from the selected Git branch.
     autoDeployTrigger: off
     envVars:
       - key: APP_ENV
@@ -20,6 +22,7 @@ services:
       - key: GROQ_API_KEY
         sync: false
       - key: DOCUMENT_STORAGE_DIR
+        # Temporary disk is suitable for a demo; it is cleared on redeploy.
         value: /tmp/uploads
       - key: EMBEDDING_BACKEND
         value: fastembed

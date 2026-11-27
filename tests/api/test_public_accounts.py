@@ -19,6 +19,7 @@ from app.models import User
 
 
 def test_password_hash_uses_a_unique_salt():
+    """Equal passwords must not produce equal stored digests."""
     first = hash_password("long-demo-password")
     second = hash_password("long-demo-password")
     assert first != second
@@ -50,6 +51,7 @@ def test_session_cookie_is_secure_and_http_only(monkeypatch):
 
 
 def test_signup_and_signin_routes(monkeypatch):
+    """Exercise both routes without requiring a live Neon database."""
     class Session:
         user = None
 
@@ -72,6 +74,7 @@ def test_signup_and_signin_routes(monkeypatch):
         yield session
 
     app.dependency_overrides[get_db] = fake_db
+    # Always remove FastAPI overrides so later tests use their own fixtures.
     try:
         with TestClient(app) as client:
             credentials = {"email": "Person@Example.com", "password": "a-unique-demo-password"}

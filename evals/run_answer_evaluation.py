@@ -20,6 +20,7 @@ def words(value: str) -> set[str]:
 
 def reference_f1(reference: str, answer: str) -> float:
     """Return lexical F1; this is not a semantic correctness judgment."""
+    # Word overlap is a quick proxy; the saved rows support later manual review.
     expected, actual = words(reference), words(answer)
     if not expected or not actual:
         return 0.0
@@ -69,6 +70,7 @@ def main(api_url: str = "http://127.0.0.1:8000",
             existing[row["question"]] = row
     rows = {item["question"]: existing[item["question"]]
             for item in questions if item["question"] in existing}
+    # Preserve prior successes so a failed provider call does not restart the run.
 
     def save() -> dict:
         path.write_text("".join(json.dumps(rows[item["question"]]) + "\n"
@@ -89,6 +91,7 @@ def main(api_url: str = "http://127.0.0.1:8000",
                 response.raise_for_status()
                 data = response.json()
                 retrieved = {chunk["chunk_id"] for chunk in data["chunks"]}
+                # A citation is valid only if its chunk appears in this response.
                 row = {"question": item["question"], "answerable": item["answerable"],
                        "answer": data["answer"], "abstained": data["abstained"],
                        "citations": data["citations"],

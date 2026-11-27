@@ -12,6 +12,7 @@ class DocumentRepository:
     """Handle document database operations."""
 
     def __init__(self, session: AsyncSession) -> None:
+        """Share the caller's transaction with document operations."""
         self.session = session
 
     async def create(self, document: Document) -> Document:
@@ -30,6 +31,7 @@ class DocumentRepository:
 
     async def get_by_id_for_update(self, document_id: UUID) -> Document | None:
         """Lock one row while claiming a document for processing."""
+        # Prevent concurrent workers from processing the same document.
         result = await self.session.execute(
             select(Document).where(Document.id == document_id).with_for_update()
         )
@@ -37,6 +39,7 @@ class DocumentRepository:
 
     async def get_by_sha256(self, sha256: str, owner_id: UUID | None = None) -> Document | None:
         """Retrieve a document by its SHA-256 digest."""
+        # Equal content in different user libraries is allowed.
         result = await self.session.execute(
             select(Document).where(Document.sha256 == sha256,
                                    Document.owner_id == owner_id if owner_id is not None else Document.owner_id.is_(None))

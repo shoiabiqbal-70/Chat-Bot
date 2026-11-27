@@ -42,6 +42,7 @@ def _load_fastembed_model(model_name: str):
     """Load the quantized ONNX model for memory-limited hosting."""
     try:
         from fastembed import TextEmbedding
+        # One CPU thread and no CPU memory arena fit Render's free instance.
         return TextEmbedding(model_name=model_name, threads=1,
                              providers=["CPUExecutionProvider"],
                              enable_cpu_mem_arena=False, max_batch_tokens=512)
@@ -60,6 +61,7 @@ class EmbeddingService:
         model=None,
         backend: str | None = None,
     ) -> None:
+        """Select a model backend and validate its expected vector dimension."""
 
         self.model_name = model_name or settings.embedding_model
         self.dimension = (
@@ -96,6 +98,7 @@ class EmbeddingService:
                             else self._model.get_sentence_embedding_dimension())
 
         if actual_dimension != self.dimension:
+            # Pinecone index dimensions must match both document and query vectors.
             raise EmbeddingError(
                 f"Expected {self.dimension} dimensions, "
                 f"received {actual_dimension}."
@@ -177,6 +180,7 @@ class EmbeddingService:
             )
 
         # Ensure unit-length vectors.
+        # Both backends then yield comparable cosine similarity scores.
         vectors = vectors / norms[:, np.newaxis]
 
         return np.asarray(
@@ -209,6 +213,7 @@ class EmbeddingService:
             raise ValueError("Query cannot be empty.")
 
         vectors = self._encode(
+            # This instruction is part of the query-side embedding recipe.
             [QUERY_INSTRUCTION + query.strip()],
             batch_size=1,
         )

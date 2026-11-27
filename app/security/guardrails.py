@@ -4,6 +4,8 @@ import re
 
 
 INSTRUCTION_ATTACK = re.compile(
+    # Catch common attempts to replace document-answering instructions.
+    # Retrieved passage text is still treated as untrusted in the prompt.
     r"\b(ignore|disregard|override)\b.{0,50}\b(instructions|rules|system prompt)\b"
     r"|\b(reveal|print|show)\b.{0,50}\b(system prompt|api key|secret)\b",
     re.IGNORECASE | re.DOTALL,

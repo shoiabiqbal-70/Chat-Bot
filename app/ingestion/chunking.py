@@ -34,6 +34,7 @@ class DocumentChunk:
     source_block_indices: tuple[int, ...]
 
     def __post_init__(self):
+        """Reject invalid source metadata before a chunk is indexed."""
         if not isinstance(self.text, str) or not self.text.strip():
             raise ValueError("Chunk text cannot be empty.")
 
@@ -243,6 +244,7 @@ def chunk_document(
         )
 
     # Process each page/section independently.
+    # Crossing these boundaries would make page citations misleading.
     for group in groups:
 
         page_number, section = group["key"]

@@ -15,6 +15,7 @@ depends_on = None
 
 
 def upgrade() -> None:
+    """Create account tables and scope future document hashes by owner."""
     op.create_table(
         "users",
         sa.Column("id", sa.UUID(), primary_key=True),
@@ -33,10 +34,12 @@ def upgrade() -> None:
     op.create_foreign_key("fk_documents_owner_id_users", "documents", "users", ["owner_id"], ["id"], ondelete="CASCADE")
     op.create_index("ix_documents_owner_id", "documents", ["owner_id"])
     op.drop_constraint("uq_documents_sha256", "documents", type_="unique")
+    # Earlier documents have a null owner; new accounts can upload equal files.
     op.create_unique_constraint("uq_documents_owner_sha256", "documents", ["owner_id", "sha256"])
 
 
 def downgrade() -> None:
+    """Remove accounts and restore the original global hash constraint."""
     op.drop_constraint("uq_documents_owner_sha256", "documents", type_="unique")
     op.create_unique_constraint("uq_documents_sha256", "documents", ["sha256"])
     op.drop_index("ix_documents_owner_id", table_name="documents")

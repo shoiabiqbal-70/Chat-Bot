@@ -29,6 +29,8 @@ class Chunk(Base):
     __tablename__ = "chunks"
 
     __table_args__ = (
+        # Chunk indices are unique within one document and page numbers match
+        # the one-based numbering shown to users.
         UniqueConstraint(
             "document_id",
             "chunk_index",
@@ -51,6 +53,7 @@ class Chunk(Base):
     )
 
     document_id: Mapped[uuid.UUID] = mapped_column(
+        # Cascading deletes keep passages from outliving their source document.
         UUID(as_uuid=True),
         ForeignKey("documents.id", ondelete="CASCADE"),
         nullable=False,

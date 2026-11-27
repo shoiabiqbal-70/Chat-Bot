@@ -90,6 +90,8 @@ class DocumentService:
         commit_started = False
 
         if self.session.in_transaction():
+            # Registration must own its transaction so file and row cleanup
+            # cannot accidentally roll back unrelated caller changes.
             raise DocumentServiceError(
                 "Document registration requires a fresh transaction."
             )
@@ -99,6 +101,8 @@ class DocumentService:
         with anyio.CancelScope(shield=True):
             try:
                 existing = await self.repository.get_by_sha256(validated.sha256, self.owner_id)
+                # Duplicate content is checked within the user's library; the
+                # database constraint handles simultaneous uploads racing here.
 
                 if existing is not None:
                     raise DuplicateDocumentError(
@@ -115,6 +119,8 @@ class DocumentService:
 
                 stored = True
                 commit_started = True
+                # Once commit begins its outcome may be uncertain; keep the
+                # file for a later retry instead of deleting a committed upload.
 
                 await self.session.commit()
 

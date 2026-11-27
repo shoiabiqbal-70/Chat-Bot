@@ -52,6 +52,7 @@ def _extract_table_text(table):
     rows = []
 
     for row in table.rows:
+        # Keep table cells in reading order even though the index stores text.
         cells = []
 
         for cell in row.cells:
@@ -120,6 +121,8 @@ def extract_docx(
         document = Document(source)
 
         for item in document.iter_inner_content():
+            # Interleave tables with paragraphs instead of moving all tables
+            # to the end, which would break surrounding context.
 
             if hasattr(item, "style") and hasattr(item, "text"):
                 text = item.text
@@ -130,6 +133,7 @@ def extract_docx(
                 block_type = _classify_paragraph(item)
 
                 if block_type == BlockType.HEADING:
+                    # Carry the latest heading into subsequent chunk metadata.
                     current_section = text.strip()
 
             else:

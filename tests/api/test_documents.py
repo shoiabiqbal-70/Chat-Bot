@@ -24,6 +24,8 @@ from app.models import Document
 
 def test_atomic_ingest_returns_completed_document(client, session, monkeypatch):
     """The main upload route must report success only after indexing."""
+    # Stub indexing so this route test checks HTTP semantics independently of
+    # the embedding and vector providers.
     from app.api import documents as module
     from app.repositories import DocumentRepository
 

@@ -19,6 +19,7 @@ CORPUS = ROOT / "data" / "corpus"
 GOLDEN = ROOT / "evals" / "golden_questions.jsonl"
 RESULTS = ROOT / "evals" / "results"
 CONFIGS = {"A": (320, 45), "B": (450, 65), "current": (512, 75)}
+# Each tuple is (tokens per chunk, overlapping tokens) for comparison.
 
 
 def main() -> None:
@@ -48,6 +49,7 @@ def main() -> None:
         answerable_above_cutoff = []
         unanswerable_below_cutoff = []
         for question, query in zip(questions, query_vectors):
+            # Normalized embeddings make a dot product a cosine similarity.
             scores = vectors @ query
             order = np.argsort(-scores)[:5]
             top = [{"source": chunks[i][0], "page": chunks[i][1].page_number,
@@ -60,6 +62,8 @@ def main() -> None:
                     int(top[0]["score"] >= settings.min_similarity_score)
                 )
                 rank = next((i + 1 for i, item in enumerate(top)
+                             # Score a hit only when the expected source
+                             # location appears among the first five results.
                              if item["source"] == question["source"] and (
                                  item["page"] == question.get("source_page")
                                  if "source_page" in question else

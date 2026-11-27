@@ -66,6 +66,7 @@ async def require_owned_document(session: AsyncSession, document_id: UUID,
     """Hide another account's document as a missing resource."""
     document = await DocumentRepository(session).get_by_id(document_id)
     if document is None or (owner_id is not None and document.owner_id != owner_id):
+        # Returning 404 also avoids revealing another user's document ID.
         raise HTTPException(status_code=404, detail="Document not found.")
 
 
@@ -159,6 +160,7 @@ async def delete_document(
         extension = Path(document.filename).suffix
         document.status = "deleting"
         await session.commit()
+        # Hide the document from retrieval before removing vectors and files.
         await VectorStore().delete_document(str(document_id))
         await repository.delete(document_id)
         await session.commit()
@@ -181,6 +183,7 @@ async def ingest_document(
 ) -> DocumentIngestResponse:
     """Return 201 only after the uploaded file is searchable."""
     registered = await upload_document(file, session, storage, owner_id)
+    # The combined endpoint reports success only after indexing completes.
     try:
         count = await process_document(registered.id, session, storage, VectorStore())
     except InvalidDocumentContent as exc:

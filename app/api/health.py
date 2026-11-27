@@ -19,6 +19,8 @@ async def health_check() -> HealthResponse:
     Returns:
         HealthResponse: Application status and configuration details.
     """
+    # This lightweight probe checks that the web process responds; it does
+    # not call Neon, Pinecone, or Groq on every health request.
     return HealthResponse(
         status="healthy",
         app_name=settings.app_name,

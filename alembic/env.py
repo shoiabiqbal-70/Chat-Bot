@@ -52,6 +52,7 @@ def get_migration_url() -> URL:
         raise ValueError("Only PostgreSQL URLs are supported.")
 
     if not url.host or "-pooler" in url.host.lower():
+        # Schema migrations need a direct Neon connection, not its pooler.
         raise ValueError(
             "A direct Neon database connection is required."
         )
@@ -102,6 +103,7 @@ async def run_async_migrations() -> None:
     ssl_context = ssl.create_default_context()
 
     engine = create_async_engine(
+        # Migrations are short-lived; they do not need the app's connection pool.
         get_migration_url(),
         poolclass=pool.NullPool,
         connect_args={"ssl": ssl_context},

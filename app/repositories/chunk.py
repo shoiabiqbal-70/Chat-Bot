@@ -12,6 +12,7 @@ class ChunkRepository:
     """Handle document chunk database operations."""
 
     def __init__(self, session: AsyncSession) -> None:
+        """Share the caller's transaction with chunk operations."""
         self.session = session
 
     async def create_many(
@@ -47,6 +48,7 @@ class ChunkRepository:
             raise ValueError("Offset cannot be negative.")
 
         statement = (
+            # Preserve original chunk order for citations and whole-file scans.
             select(Chunk)
             .where(Chunk.document_id == document_id)
             .order_by(Chunk.chunk_index.asc())
@@ -68,6 +70,8 @@ class ChunkRepository:
 
     async def delete_for_document(self, document_id: UUID) -> int:
         """Delete all chunks belonging to a document."""
+        # Bulk delete bypasses ORM synchronization because the caller does not
+        # need loaded chunk objects after reindexing.
         result = await self.session.execute(
             delete(Chunk)
             .where(Chunk.document_id == document_id)

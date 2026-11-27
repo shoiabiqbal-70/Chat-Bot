@@ -58,6 +58,7 @@ class LocalDocumentStorage:
         extension: str,
     ) -> Path:
         """Construct a controlled document storage path."""
+        # UUID filenames prevent client-provided paths from reaching storage.
         if not isinstance(document_id, UUID):
             raise ValueError(
                 "Document ID must be a UUID."
@@ -90,6 +91,7 @@ class LocalDocumentStorage:
         ).hexdigest()
 
         if actual_hash != upload.sha256:
+            # Recheck content integrity before creating a permanent file.
             raise StorageError(
                 "Document checksum verification failed."
             )
@@ -106,6 +108,8 @@ class LocalDocumentStorage:
 
         try:
             flags = (
+                # O_EXCL prevents overwrite; O_NOFOLLOW rejects symlink targets
+                # where the operating system supports it.
                 os.O_WRONLY
                 | os.O_CREAT
                 | os.O_EXCL
@@ -122,6 +126,7 @@ class LocalDocumentStorage:
             created = True
 
             with os.fdopen(descriptor, "wb") as file:
+                # fsync makes the file durable before its DB row is committed.
                 file.write(upload.content)
                 file.flush()
                 os.fsync(file.fileno())

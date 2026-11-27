@@ -13,6 +13,7 @@ from app.services import ingestion_service
 
 
 def test_unextractable_document_is_failed(monkeypatch, tmp_path):
+    """Extraction failures mark the row failed before any vector write."""
     document = SimpleNamespace(id=uuid4(), filename="empty.pdf",
                                mime_type="application/pdf", status="pending",
                                error_message=None)
@@ -48,6 +49,7 @@ def test_unextractable_document_is_failed(monkeypatch, tmp_path):
 
 
 def test_partial_vector_upsert_is_compensated(monkeypatch, tmp_path):
+    """A failed Pinecone upsert triggers document-wide vector cleanup."""
     document = SimpleNamespace(id=uuid4(), filename="sample.pdf",
                                mime_type="application/pdf", status="pending",
                                error_message=None)

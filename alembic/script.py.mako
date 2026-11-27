@@ -18,6 +18,7 @@ branch_labels: Union[str, Sequence[str], None] = ${repr(branch_labels)}
 depends_on: Union[str, Sequence[str], None] = ${repr(depends_on)}
 
 
+# Alembic substitutes generated SQL operations into this revision template.
 def upgrade() -> None:
     """Upgrade schema."""
     ${upgrades if upgrades else "pass"}

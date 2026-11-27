@@ -20,6 +20,7 @@ class VectorStore:
     """Use a configured Pinecone dense index with cosine scores."""
 
     def __init__(self, index=None):
+        """Accept an injected index for tests or connect to the configured one."""
         if index is None:
             secret = settings.pinecone_api_key
             if secret is None or not secret.get_secret_value().strip():
@@ -46,6 +47,7 @@ class VectorStore:
     async def upsert(self, vectors: list[dict]) -> None:
         """Write vectors without blocking the event loop."""
         try:
+            # Small batches limit request size and memory during large uploads.
             for start in range(0, len(vectors), 100):
                 batch = vectors[start:start + 100]
                 await self._execute(lambda: self.index.upsert(vectors=batch))
@@ -71,6 +73,8 @@ class VectorStore:
             if document_id is not None:
                 filters["document_id"] = {"$eq": document_id}
             if owner_id is not None:
+                # Scope retrieval at Pinecone before checking ownership again
+                # against canonical document rows in the answer service.
                 filters["owner_id"] = {"$eq": owner_id}
             if filters:
                 options["filter"] = filters

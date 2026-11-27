@@ -13,11 +13,13 @@ from app.services import answer_service
 
 
 class FakeEmbedding:
+    """Give retrieval a deterministic vector without loading a model."""
     def embed_query(self, question):
         return SimpleNamespace(tolist=lambda: [1.0, 0.0])
 
 
 class FakeVectors:
+    """Supply chosen search results without contacting Pinecone."""
     def __init__(self, matches):
         self.matches = matches
 
@@ -47,6 +49,7 @@ def test_low_similarity_abstains_without_generation(monkeypatch):
 
 
 def test_rejects_citation_outside_retrieval(monkeypatch):
+    """The answer must fail when Groq cites a chunk never retrieved."""
     monkeypatch.setattr(answer_service, "get_embedding_service", lambda: FakeEmbedding())
     monkeypatch.setattr(answer_service.settings, "groq_api_key", SecretStr("test-key"))
     document_id, chunk_id = uuid4(), uuid4()
@@ -73,6 +76,7 @@ def test_rejects_citation_outside_retrieval(monkeypatch):
     bad_id = uuid4()
 
     def respond(request):
+        # MockTransport checks the exact provider payload and injects a bad ID.
         assert request.url.path == "/openai/v1/chat/completions"
         assert request.headers["Authorization"] == "Bearer test-key"
         assert json.loads(request.content)["model"] == "openai/gpt-oss-20b"

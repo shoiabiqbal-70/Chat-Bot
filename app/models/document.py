@@ -30,6 +30,8 @@ class Document(Base):
     __tablename__ = "documents"
 
     __table_args__ = (
+        # Identical files may exist under separate owners, but only once per
+        # account. Status values mirror the ingestion lifecycle.
         UniqueConstraint("owner_id", "sha256", name="uq_documents_owner_sha256"),
         CheckConstraint(
             "status IN ('pending', 'processing', 'completed', "
@@ -88,6 +90,7 @@ class Document(Base):
     )
 
     chunks: Mapped[list["Chunk"]] = relationship(
+        # Removing a document also removes its canonical source passages.
         "Chunk",
         back_populates="document",
         cascade="all, delete-orphan",

@@ -31,6 +31,7 @@ async def ask(request: QuestionRequest,
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except RateLimitError as exc:
+        # Preserve 429 so the UI can distinguish provider quota from bad input.
         raise HTTPException(status_code=429, detail=str(exc)) from exc
     except (AnswerError, VectorStoreError) as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc

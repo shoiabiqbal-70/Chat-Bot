@@ -1,6 +1,9 @@
+// The UI talks to the same-origin FastAPI API; the browser sends its session
+// cookie automatically with each request.
 const $ = (id) => document.getElementById(id);
 let documentSelectionTouched = false;
 let authMode = 'signin';
+// Keep account-only document controls hidden until the session is confirmed.
 function showWorkspace(account) {
   $('auth-panel').hidden = true;
   document.querySelector('main').hidden = false;
@@ -11,6 +14,7 @@ function showWorkspace(account) {
   refresh();
 }
 function showAuth() {
+  // Clear the previous account's files, question and evidence on sign-out.
   $('auth-panel').hidden = false;
   document.querySelector('main').hidden = true;
   document.querySelector('footer').hidden = true;
@@ -26,6 +30,7 @@ function showAuth() {
   $('answer').textContent = '';
 }
 function setAuthMode(mode) {
+  // One form serves both sign-in and sign-up, including password autocomplete.
   authMode = mode;
   $('signin-tab').classList.toggle('active', mode === 'signin');
   $('signup-tab').classList.toggle('active', mode === 'signup');
@@ -40,6 +45,7 @@ $('auth-form').addEventListener('submit', async (event) => {
   $('auth-submit').disabled = true;
   $('auth-status').textContent = 'Please wait…';
   try {
+    // An authenticated response is enough to open the private workspace.
     const account = await api(`/api/auth/${authMode}`, {method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({email:$('auth-email').value, password:$('auth-password').value})});
@@ -50,10 +56,13 @@ $('auth-form').addEventListener('submit', async (event) => {
   finally { $('auth-submit').disabled = false; }
 });
 $('signout').addEventListener('click', async () => {
+  // Clear local UI even if the network fails. If the server session remains
+  // valid, a page refresh will restore it.
   try { await api('/api/auth/signout', {method:'POST'}); } catch {}
   showAuth();
 });
 async function api(path, options = {}) {
+  // Convert FastAPI validation errors and other HTTP failures into UI messages.
   const response = await fetch(path, options);
   if (!response.ok) {
     let detail = `Request failed (${response.status})`;
@@ -67,6 +76,7 @@ async function api(path, options = {}) {
   return response.status === 204 ? null : response.json();
 }
 async function refresh() {
+  // Rebuild the library and selector from the server's current document list.
   const list = $('documents');
   const selector = $('ask-document');
   const selected = selector.value;
@@ -79,6 +89,7 @@ async function refresh() {
       if (doc.status === 'completed') selector.add(new Option(doc.filename, doc.id));
     }
     if (selector.options.length === 2) {
+      // With one file, select it so document-specific questions work directly.
       selector.selectedIndex = 1;
     } else if (documentSelectionTouched && [...selector.options].some(option => option.value === selected)) {
       selector.value = selected;
@@ -87,6 +98,7 @@ async function refresh() {
     }
     if (!docs.length) { list.innerHTML = '<li class="empty-library">Your library is empty. Upload a document to begin.</li>'; return; }
     for (const doc of docs) {
+      // textContent keeps uploaded filenames as text, never executable markup.
       const item = document.createElement('li');
       const head = document.createElement('div'); head.className = 'doc-head';
       const name = document.createElement('span'); name.className = 'filename'; name.textContent = doc.filename;
@@ -118,10 +130,12 @@ $('upload-form').addEventListener('submit', async (event) => {
   $('upload-status').textContent = 'Uploading…';
   try {
     const form = new FormData(event.target);
+    // Multipart FormData lets the browser set the required upload boundary.
     $('upload-status').textContent = 'Uploading and indexing…';
     const doc = await api('/api/documents', {method:'POST', body:form});
     $('upload-status').textContent = `Indexed ${doc.chunk_count} chunks from ${doc.filename}.`;
     event.target.reset(); await refresh(); $('ask-document').value = doc.id;
+    // After upload, questions target that file until the user changes scope.
     documentSelectionTouched = true;
   } catch (error) { $('upload-status').textContent = error.message; await refresh(); }
   finally { button.disabled = false; }
@@ -130,6 +144,7 @@ $('ask-form').addEventListener('submit', async (event) => {
   event.preventDefault(); const button = event.submitter; button.disabled = true;
   $('ask-status').textContent = 'Searching…'; $('answer').textContent = '';
   $('chunk-count').textContent = ''; $('evidence').replaceChildren();
+  // Remove prior citations before a new answer so evidence cannot be mixed.
   try {
     const data = await api('/api/ask', {method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({question:$('question').value,
@@ -138,6 +153,7 @@ $('ask-form').addEventListener('submit', async (event) => {
     $('answer').textContent = data.answer;
     $('chunk-count').textContent = `(${data.chunk_count})`;
     for (const chunk of data.chunks) {
+      // Render every retrieved passage; mark only verified cited chunk IDs.
       const node = document.createElement('div'); node.className = 'source';
       const title = document.createElement('p'); title.className = 'meta';
       title.textContent = `${data.citations.includes(chunk.chunk_id) ? 'Cited · ' : ''}${chunk.filename} · page ${chunk.page_number ?? '—'} · chunk ${chunk.chunk_index}`;
@@ -149,4 +165,5 @@ $('ask-form').addEventListener('submit', async (event) => {
   } catch (error) { $('ask-status').textContent = error.message; }
   finally { button.disabled = false; }
 });
+// Restore a valid session after a page refresh; otherwise show sign-in.
 api('/api/auth/me').then(showWorkspace).catch(showAuth);

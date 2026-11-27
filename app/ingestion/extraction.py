@@ -50,6 +50,7 @@ def validate_source_file(
     )
 
     source = Path(path)
+    # Revalidate the stored file at extraction time in case it changed after upload.
 
     try:
         if source.is_symlink():
@@ -166,6 +167,7 @@ def extract_pdf(
                 )
 
             for page_number, page in enumerate(
+                # Preserve PDF's original one-based page numbers for citations.
                 reader.pages,
                 start=1,
             ):

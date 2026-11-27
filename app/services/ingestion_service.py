@@ -58,6 +58,7 @@ async def process_document(
 
     document.status = "processing"
     await session.commit()
+    # Persist processing status before the slow extraction and embedding work.
     upsert_started = False
     try:
         path = storage.get_path(document.id, Path(document.filename).suffix)
@@ -79,6 +80,8 @@ async def process_document(
                       chunk_index=part.chunk_index, token_count=part.token_count)
                 for part in parts]
         payload = [
+            # Vector metadata supports scoped search; source text stays canonical
+            # in Postgres where ownership and lifecycle checks are enforced.
             {"id": str(row.id), "values": embeddings[i].tolist(),
              "metadata": {"document_id": str(document.id),
                           "chunk_id": str(row.id),
@@ -88,6 +91,8 @@ async def process_document(
             for i, row in enumerate(rows)
         ]
         upsert_started = True
+        # Pinecone and Postgres cannot share a transaction, so cleanup below
+        # compensates if either stage after this point fails.
         await vectors.upsert(payload)
         await ChunkRepository(session).create_many(rows)
         document.status = "completed"
@@ -95,6 +100,7 @@ async def process_document(
         return len(rows)
     except Exception as exc:
         await session.rollback()
+        # Roll back partial SQL writes before deleting any new vector records.
         cleanup_failed = False
         if upsert_started:
             try:

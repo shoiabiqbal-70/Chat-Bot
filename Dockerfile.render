@@ -1,5 +1,6 @@
 FROM python:3.12-slim
 
+# Keep Python output visible in Render logs and bound native-library memory.
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     HF_HOME=/opt/model-cache \
@@ -17,6 +18,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.render.txt .
+# Bake the embedding model and tokenizer into the image. Runtime downloads
+# would slow cold starts and may fail when the service has no outbound access.
 RUN python -m pip install --no-cache-dir -r requirements.render.txt \
     && python -c "from fastembed import TextEmbedding; from tokenizers import Tokenizer; model=TextEmbedding('BAAI/bge-small-en-v1.5', threads=1, providers=['CPUExecutionProvider'], enable_cpu_mem_arena=False, max_batch_tokens=512); next(iter(model.embed(['ready']))); Tokenizer.from_pretrained('BAAI/bge-small-en-v1.5')"
 
@@ -31,4 +34,5 @@ RUN useradd --create-home --uid 10001 rag \
 
 USER rag
 
+# Apply schema changes before accepting traffic; Render supplies the port.
 CMD ["sh", "-c", "python -m alembic upgrade head && exec python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000}"]

@@ -33,6 +33,7 @@ def _prepare_database_url(raw_url: str) -> tuple[URL, ssl.SSLContext]:
         raise ValueError("Only PostgreSQL URLs are supported.")
 
     query = dict(url.query)
+    # asyncpg receives TLS as an SSLContext, so remove URL-only SSL options.
 
     sslmode = query.pop("sslmode", None)
     query.pop("channel_binding", None)
@@ -66,6 +67,7 @@ def get_engine() -> AsyncEngine:
     database_url, ssl_context = _prepare_database_url(raw_url)
 
     return create_async_engine(
+        # Keep pooled connections healthy across Neon idle disconnects.
         database_url,
         echo=False,
         pool_pre_ping=True,
@@ -110,6 +112,7 @@ async def close_database() -> None:
     """Close database connections during shutdown."""
 
     if get_engine.cache_info().currsize == 0:
+        # Avoid constructing an engine merely to shut it down.
         return
 
     await get_engine().dispose()

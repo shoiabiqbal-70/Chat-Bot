@@ -12,11 +12,13 @@
 </head>
 <body>
   <div class="site-shell">
+    <!-- The header shares account controls across the sign-in and workspace views. -->
     <header class="site-header">
       <a class="brand" href="/app" aria-label="Source Atlas home"><span class="brand-mark" aria-hidden="true">S<span>✦</span></span><span>Source Atlas</span></a>
       <div class="header-right"><span id="account-email" class="header-pill" hidden></span><button id="signout" class="header-link signout-button" type="button" hidden>Sign out</button></div>
     </header>
 
+    <!-- JavaScript shows this view when the session endpoint returns 401. -->
     <section id="auth-panel" class="auth-panel" hidden aria-labelledby="auth-title">
       <div class="auth-card">
         <span class="section-kicker">WELCOME TO SOURCE ATLAS</span>
@@ -33,6 +35,7 @@
       </div>
     </section>
 
+    <!-- The private workspace is shown only after the account is confirmed. -->
     <main hidden>
       <section class="hero" aria-labelledby="hero-title">
         <div class="hero-copy">
@@ -47,6 +50,7 @@
       <div class="workspace-head"><div><span class="section-kicker">WORKSPACE</span><h2>Explore your sources</h2><p>Keep your files organized and your answers grounded.</p></div><div class="workspace-tag">01 / YOUR DOCUMENTS</div></div>
 
       <div class="workspace-grid">
+        <!-- Uploads enter through FormData; the server validates and indexes files. -->
         <section class="panel library-panel" aria-labelledby="library-title">
           <div class="panel-heading"><div class="panel-icon" aria-hidden="true">▤</div><div><h3 id="library-title">Document library</h3><p>Upload and manage your sources</p></div><button id="refresh" class="icon-button" type="button" aria-label="Refresh documents" title="Refresh documents">↻</button></div>
           <form id="upload-form" class="upload-form">
@@ -59,6 +63,7 @@
           <ul id="documents" class="document-list"></ul>
         </section>
 
+        <!-- Question results include both an answer and its source passages. -->
         <section class="panel ask-panel" aria-labelledby="ask-title">
           <div class="panel-heading"><div class="panel-icon panel-icon-accent" aria-hidden="true">✦</div><div><h3 id="ask-title">Ask your documents</h3><p>Answers linked to the passages they came from</p></div></div>
           <form id="ask-form" class="ask-form">
@@ -68,6 +73,7 @@
           </form>
           <div class="answer-area"><p id="ask-status" class="status-text" role="status" aria-live="polite"></p><div id="answer" class="answer-text" aria-live="polite"></div></div>
           <div class="evidence-heading"><h4>Source passages <span id="chunk-count" class="count-badge"></span></h4><span class="evidence-caption">Inspect what the answer used</span></div>
+          <!-- The browser builds passage nodes with textContent for safe display. -->
           <div id="evidence" class="evidence-list"></div>
         </section>
       </div>

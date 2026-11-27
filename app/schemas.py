@@ -24,6 +24,7 @@ class MessageResponse(BaseModel):
 class DocumentUploadResponse(BaseModel):
     """Represent a successfully registered document."""
 
+    # Read ORM objects directly without exposing local file paths or owner IDs.
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID = Field(

@@ -20,6 +20,7 @@ def execute(path: Path) -> None:
     """Run code cells in one shared namespace and persist printed evidence."""
     data = json.loads(path.read_text(encoding="utf-8"))
     namespace = {"__name__": "__main__"}
+    # Cells share state exactly as they do in an interactive notebook run.
     count = 0
     for cell in data["cells"]:
         if cell["cell_type"] != "code":
@@ -28,6 +29,7 @@ def execute(path: Path) -> None:
         output = io.StringIO()
         source = "".join(cell["source"])
         with contextlib.redirect_stdout(output):
+            # Store printed evidence back in the notebook for later review.
             exec(compile(source, str(path), "exec"), namespace)
         cell["execution_count"] = count
         cell["outputs"] = ([{"output_type": "stream", "name": "stdout",

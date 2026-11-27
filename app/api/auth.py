@@ -25,6 +25,7 @@ SESSION_DAYS = 7
 
 
 def cookie_name() -> str:
+    """Use the host-only cookie prefix when HTTPS is required in production."""
     return "__Host-source_atlas_session" if settings.app_env == "production" else "source_atlas_session"
 
 
@@ -35,6 +36,7 @@ class Credentials(BaseModel):
     @field_validator("email")
     @classmethod
     def valid_email(cls, value: str) -> str:
+        """Normalize email before lookup and duplicate-account checks."""
         value = value.strip().lower()
         if value.count("@") != 1 or not value.split("@", 1)[0] or "." not in value.split("@", 1)[1]:
             raise ValueError("Enter a valid email address.")
@@ -47,6 +49,7 @@ class Account(BaseModel):
 
 
 def hash_password(password: str, salt: bytes | None = None) -> str:
+    """Store the scrypt parameters and salt beside the password digest."""
     if salt is None:
         salt = secrets.token_bytes(16)
     digest = hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=5, dklen=32)
@@ -54,6 +57,7 @@ def hash_password(password: str, salt: bytes | None = None) -> str:
 
 
 def verify_password(password: str, encoded: str) -> bool:
+    """Recompute the stored hash and compare it without timing leaks."""
     try:
         algorithm, n, r, p, salt, expected = encoded.split("$")
         if algorithm != "scrypt":
@@ -66,10 +70,12 @@ def verify_password(password: str, encoded: str) -> bool:
 
 
 def token_hash(token: str) -> str:
+    """Keep only a hash of the browser's session token in the database."""
     return hashlib.sha256(token.encode()).hexdigest()
 
 
 DUMMY_PASSWORD_HASH = hash_password("dummy-password-123", b"source-atlas-demo")
+# Unknown accounts still perform password work, so sign-in timing reveals less.
 
 
 def check_origin(request: Request) -> None:
@@ -90,6 +96,7 @@ async def get_current_user_id(
     check_origin(request)
     token = request.cookies.get(cookie_name())
     if not token or len(token) > 256:
+        # Local tools can run without an account; deployed users need a session.
         if settings.app_env != "production":
             return None
         raise HTTPException(status_code=401, detail="Sign in to continue.")
@@ -110,6 +117,7 @@ async def get_current_user_id(
 
 
 async def issue_session(response: Response, session: AsyncSession, user: User) -> Account:
+    """Persist a revocable session and send its raw token only in a cookie."""
     token = secrets.token_urlsafe(32)
     session.add(UserSession(token_hash=token_hash(token), user_id=user.id,
                             expires_at=datetime.now(timezone.utc) + timedelta(days=SESSION_DAYS)))
@@ -124,6 +132,7 @@ async def issue_session(response: Response, session: AsyncSession, user: User) -
 @router.post("/signup", response_model=Account, status_code=201)
 async def signup(credentials: Credentials, response: Response, request: Request,
                  session: Annotated[AsyncSession, Depends(get_db)]) -> Account:
+    """Create an account and sign it in after the database accepts it."""
     check_origin(request)
     email = str(credentials.email).strip().lower()
     password = await anyio.to_thread.run_sync(hash_password, credentials.password)
@@ -140,6 +149,7 @@ async def signup(credentials: Credentials, response: Response, request: Request,
 @router.post("/signin", response_model=Account)
 async def signin(credentials: Credentials, response: Response, request: Request,
                  session: Annotated[AsyncSession, Depends(get_db)]) -> Account:
+    """Authenticate credentials while doing equal work for unknown emails."""
     check_origin(request)
     result = await session.execute(select(User).where(User.email == str(credentials.email).strip().lower()))
     user = result.scalar_one_or_none()
@@ -153,6 +163,7 @@ async def signin(credentials: Credentials, response: Response, request: Request,
 @router.get("/me", response_model=Account)
 async def me(user_id: Annotated[UUID | None, Depends(get_current_user_id)],
              session: Annotated[AsyncSession, Depends(get_db)]) -> Account:
+    """Return the signed-in account used to restore the browser session."""
     if user_id is None:
         raise HTTPException(status_code=401, detail="Sign in to continue.")
     user = await session.get(User, user_id)
@@ -164,6 +175,7 @@ async def me(user_id: Annotated[UUID | None, Depends(get_current_user_id)],
 @router.post("/signout", status_code=204)
 async def signout(request: Request, response: Response,
                   session: Annotated[AsyncSession, Depends(get_db)]) -> None:
+    """Revoke the stored token before clearing the browser cookie."""
     check_origin(request)
     token = request.cookies.get(cookie_name())
     if token:

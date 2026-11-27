@@ -6,6 +6,7 @@ from sqlalchemy.orm import DeclarativeBase
 
 
 NAMING_CONVENTION = {
+    # Stable constraint names make Alembic migrations predictable.
     "ix": "ix_%(column_0_label)s",
     "uq": "uq_%(table_name)s_%(column_0_name)s",
     "ck": "ck_%(table_name)s_%(constraint_name)s",

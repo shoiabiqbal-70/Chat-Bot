@@ -34,6 +34,7 @@ class ExtractedBlock:
 
     def __post_init__(self) -> None:
         """Validate extracted text and its source metadata."""
+        # Validate at the boundary so later chunking can trust provenance.
 
         if not isinstance(self.text, str):
             raise TypeError("Block text must be a string.")
@@ -94,6 +95,7 @@ class ExtractedDocument:
 
     def __post_init__(self) -> None:
         """Validate document metadata and block consistency."""
+        # This is the format-independent contract shared by all extractors.
 
         if not isinstance(self.document_id, UUID):
             raise TypeError(

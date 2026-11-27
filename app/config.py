@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     """Central settings for the Production RAG Service."""
 
     model_config = SettingsConfigDict(
+        # Environment variables override local .env values on deployment.
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
@@ -35,6 +36,7 @@ class Settings(BaseSettings):
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     embedding_backend: Literal["sentence_transformers", "fastembed"] = "sentence_transformers"
     embedding_dimension: int = 384
+    # This dimension must match the Pinecone index and embedding model.
     embedding_device: str = "cpu"
 
     # Groq
@@ -43,6 +45,7 @@ class Settings(BaseSettings):
 
     # RAG settings
     max_upload_size_mb: int = Field(default=20, ge=1, le=100)
+    # Render overrides the default to keep uploads within its free memory tier.
     top_k: int = Field(default=5, ge=1, le=100)
     min_similarity_score: float = Field(default=0.58, ge=0.0, le=1.0)
     document_storage_dir: str = "data/uploads"

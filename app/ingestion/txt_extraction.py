@@ -74,6 +74,7 @@ def extract_txt(
         text = text.replace("\r\n", "\n").replace("\r", "\n")
 
         paragraphs = re.split(r"\n[ \t]*\n+", text)
+        # Blank lines separate blocks; ordinary line breaks stay inside each.
 
         blocks = []
 

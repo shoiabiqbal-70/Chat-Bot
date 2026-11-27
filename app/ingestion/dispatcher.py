@@ -50,6 +50,7 @@ def extract_document(
     extension = Path(filename).suffix.lower()
 
     expected_mime = SUPPORTED_FORMATS.get(extension)
+    # Select the extractor from the validated extension, then cross-check MIME.
 
     if expected_mime is None:
         raise ExtractionError(

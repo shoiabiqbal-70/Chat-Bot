@@ -10,6 +10,7 @@ from app.config import settings
 @lru_cache(maxsize=2)
 def get_tokenizer(model_name=None):
     """Load the tokenizer associated with the embedding model."""
+    # Chunk sizes are measured with the same token vocabulary as embeddings.
 
     model_name = model_name or settings.embedding_model
 

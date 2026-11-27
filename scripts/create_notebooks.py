@@ -9,15 +9,18 @@ OUT = ROOT / "notebooks"
 
 
 def markdown(source: str) -> dict:
+    """Convert Markdown text into a notebook cell payload."""
     return {"cell_type": "markdown", "metadata": {}, "source": source.splitlines(True)}
 
 
 def code(source: str) -> dict:
+    """Convert executable Python text into a notebook cell payload."""
     return {"cell_type": "code", "execution_count": None, "metadata": {},
             "outputs": [], "source": source.splitlines(True)}
 
 
 def save(name: str, cells: list[dict]) -> None:
+    """Write a reproducible notebook without running its cells."""
     notebook = {"cells": cells, "metadata": {"kernelspec": {
         "display_name": "Python 3", "language": "python", "name": "python3"}},
         "nbformat": 4, "nbformat_minor": 5}
@@ -25,6 +28,7 @@ def save(name: str, cells: list[dict]) -> None:
 
 
 setup = """from pathlib import Path
+# Locate the repository root so imports work from either directory.
 import os
 from uuid import uuid4
 ROOT = Path.cwd().resolve()
@@ -38,6 +42,7 @@ save("01_extraction.ipynb", [
     markdown("# 1. Extract PDF and DOCX\nRun from the repository or `notebooks/` directory. The corpus is public DOE material. Inspect the printed source metadata and text before grading questions.\n"),
     code(setup),
     code("""from app.ingestion.dispatcher import extract_document
+# Inspect a few extracted blocks to verify text and citation metadata.
 for path in (ROOT / 'data' / 'corpus').glob('*'):
     if path.suffix not in {'.pdf', '.docx'}:
         continue
@@ -58,6 +63,7 @@ from app.ingestion.tokenizer import get_tokenizer
 path = ROOT / 'data/corpus/Energy_Literacy_text_only_3.0.docx'
 document = extract_document(path, uuid4(), path.name)
 tokenizer = get_tokenizer()
+# Compare chunk lengths and overlaps while retaining source block indexes.
 for size, overlap in ((320, 45), (450, 65)):
     chunks = chunk_document(document, tokenizer, chunk_size=size, overlap=overlap)
     print(size, overlap, 'chunks=', len(chunks))
@@ -72,10 +78,12 @@ save("03_embeddings_retrieval.ipynb", [
     code(setup),
     code("""from app.ingestion.embedding import get_embedding_service
 embedding = get_embedding_service()
+# Query vectors should match the configured index dimension and have norm 1.
 query = embedding.embed_query('What is energy literacy?')
 print('dimension=', query.shape[0], 'norm=', round(float((query @ query) ** 0.5), 5))
 """),
     code("""from evals.run_evaluation import main
+# Save fixed-question retrieval metrics for each chunking configuration.
 main()
 print((ROOT / 'evals/results/summary.json').read_text())
 """),
@@ -86,6 +94,8 @@ save("04_answering.ipynb", [
     code(setup),
     code("""from fastapi.testclient import TestClient
 from app.main import app
+# This call needs configured providers and indexed documents; inspect both
+# the answer and source passages returned by the API.
 with TestClient(app) as client:
     response = client.post('/api/ask', json={'question': 'What is energy literacy?'})
     print('status=', response.status_code)
